@@ -142,8 +142,8 @@
 
   function switchTo(i) {
     if (state !== 'playing' || i === active || i < 0 || i >= nPlayable) return;
-    players[active].stop();
-    players[active].busyTask = null;
+    if (players[i].carriedBy || players[i].refusing) { speak(players[i], "I don't want to! 😤"); return; }
+    // NOTE: we do NOT stop the previous parent — they keep doing their job.
     active = i;
     Sound.play('select');
     refreshCharBar();
@@ -176,6 +176,9 @@
     if (baby && baby.state !== 'carried') list.push({ kind: 'baby', x: baby.x, y: baby.y });
     // pick up the baby carrier
     if (Level.carrier && !babyCarrier) { const c = spotXY('carrier'); list.push({ kind: 'carrier', x: c.x, y: c.y }); }
+    // pick up a refusing Owen
+    const owen = players.find(pl => pl.id === 'owen');
+    if (owen && owen.refusing && !owen.carriedBy) list.push({ kind: 'kid', kid: owen, x: owen.x, y: owen.y });
     return list;
   }
 
@@ -200,34 +203,53 @@
   function clampX(x) { const p = World.playRect; return Math.max(p.x + 20, Math.min(p.x + p.w - 20, x)); }
   function clampY(y) { const p = World.playRect; return Math.max(p.y + p.h * 0.2, Math.min(p.y + p.h - 6, y)); }
 
-  function resolveActive(dt) {
-    const p = players[active];
+  // Run for every controllable parent each frame, so a parent keeps working a
+  // task to completion even after you switch to control someone else.
+  function resolvePlayer(p, dt) {
+    if (p.isNpc || p.carriedBy) { p.busyTask = null; return; }
     if (!p.intent) { p.busyTask = null; return; }
     const it = p.intent;
-    // a deliver-phase goal's target follows its drop-off spot
+    // some targets move: deliver drop-offs and follow-the-child nuisances
     let tx = it.x, ty = it.y;
     if (it.kind === 'task' && it.task.deliverTo && it.task.phase === 'deliver') {
-      const d = spotXY(it.task.deliverTo); tx = d.x; ty = d.y; p.tx = tx; p.ty = ty;
+      const d = spotXY(it.task.deliverTo); tx = d.x; ty = d.y;
+    } else if (it.kind === 'task' && it.task.follow) {
+      tx = it.task.follow.x; ty = it.task.follow.y;
     }
+    p.tx = tx; p.ty = ty;
     const reach = p.r + Math.min(30, World.playRect.w * 0.05);
     const dist = Math.hypot(p.x - tx, p.y - ty);
     if (dist > reach) { p.busyTask = null; return; }
 
     p.stop();
+    if (it.kind === 'move') {
+      if (p.carryKid) { dropKid(p); }   // tapped open floor while carrying Owen
+      p.intent = null; p.busyTask = null; return;
+    }
     if (it.kind === 'carrier') {
-      babyCarrier = true; Sound.play('pickup'); speak(p, 'Carrier on! 🎒'); burst(p.x, p.y - p.r * 4, '#57c785');
+      babyCarrier = true; Sound.play('carrier'); speak(p, 'Carrier on! 🎒'); burst(p.x, p.y - p.r * 4, '#57c785');
+      p.intent = null; p.busyTask = null; return;
+    }
+    if (it.kind === 'kid') {
+      const kid = it.kid;
+      if (!kid.carriedBy) {
+        if (p.carry || p.carryBaby || p.carryKid) { speak(p, 'Hands full! 🤲'); p.intent = null; p.busyTask = null; return; }
+        p.carryKid = kid; kid.carriedBy = p; kid.refusing = false; kid.stop(); kid.busyTask = null;
+        p.kidHold = 2.0; // carry a moment, then he's calm and gets set down
+        Sound.play('kidup'); speak(p, 'Come on, up we go! 🧒');
+      }
       p.intent = null; p.busyTask = null; return;
     }
     if (it.kind === 'baby') {
       if (baby.state !== 'carried') {
-        if (p.carry && !babyCarrier) { speak(p, 'Hands full! 🤲'); p.intent = null; p.busyTask = null; return; }
+        if (p.carryKid || (p.carry && !babyCarrier)) { speak(p, 'Hands full! 🤲'); p.intent = null; p.busyTask = null; return; }
         baby.state = 'carried'; baby.carrier = p; baby.placedSpot = null; p.carryBaby = true;
-        Sound.play('pickup'); speak(p, 'Up you come! 👶');
+        Sound.play('babyup'); speak(p, 'Up you come! 👶');
       }
       p.intent = null; p.busyTask = null; return;
     }
     if (it.kind === 'source') {
-      if (p.carryBaby && !babyCarrier) { speak(p, 'Hands full of baby! 🤲'); p.intent = null; p.busyTask = null; return; }
+      if (p.carryKid || (p.carryBaby && !babyCarrier)) { speak(p, 'Hands full! 🤲'); p.intent = null; p.busyTask = null; return; }
       if (!p.carry) { p.carry = it.item; Sound.play('pickup'); speak(p, `Got the ${it.item}!`); burst(p.x, p.y - p.r * 4, '#ffd34e'); }
       p.intent = null; p.busyTask = null; return;
     }
@@ -248,7 +270,7 @@
       if (p.carryBaby) {
         baby.state = 'placed'; baby.placedSpot = t.spot; baby.carrier = null; p.carryBaby = false;
         const pos = spotXY(t.spot); baby.x = pos.x; baby.y = pos.y + p.r * 0.3;
-        Sound.play('pickup'); speak(p, 'There you go! 👶');
+        Sound.play('babyup'); speak(p, 'There you go! 👶');
       } else {
         speak(p, 'Bring Elliot here first! 👶'); p.intent = null; p.busyTask = null; return;
       }
@@ -259,13 +281,12 @@
       speak(p, `Now fetch ${t.requires.item}`); p.intent = null; p.busyTask = null; return;
     }
 
-    // do the work
-    if (t.worker && t.worker !== p) t.progress = 0;
+    // do the work (continues even if this parent isn't the selected one)
     t.worker = p; t.working = true; p.busyTask = t;
     const calmMult = t.calm ? p.cfg.calmMult : 1;
     const threshold = t.duration * calmMult * (p.workMult || 1);
     t.progress += dt;
-    Sound.play('progress');
+    if (!t._sfxT || elapsed - t._sfxT > 0.12) { Sound.play('progress'); t._sfxT = elapsed; }
     if (t.progress >= threshold) {
       if (t.kind === 'milestone') {
         // a "fetch then deliver" goal: first completion picks up the item
@@ -281,6 +302,13 @@
         finishNuisance(t, p);
       }
     }
+  }
+
+  function dropKid(p) {
+    const kid = p.carryKid; if (!kid) return;
+    kid.carriedBy = null; kid.x = clampX(p.x + p.facing * p.r * 1.5); kid.y = clampY(p.y);
+    kid.refusing = false; kid.refuseTimer = 14 + Math.random() * 12;
+    p.carryKid = null; Sound.play('drop'); speak(kid, 'Okay okay 😣');
   }
 
   function finishMilestone(t, p) {
@@ -382,11 +410,38 @@
     // reset working flags; tasks decay progress if untouched
     for (const t of tasks) {
       t.working = false;
+      if (t.follow) { t.x = t.follow.x; t.y = t.follow.y; }   // crying/tantrum rides the child
     }
     // players + baby
     players.forEach((p, i) => p.update(dt, World, i === active));
-    resolveActive(dt);
+    // every controllable parent keeps working its assigned task (not just the selected one)
+    for (let i = 0; i < nPlayable; i++) resolvePlayer(players[i], dt);
+    // a carried child calms after a moment and gets set down (no fiddly drop needed)
+    for (let i = 0; i < nPlayable; i++) {
+      const pp = players[i];
+      if (pp.carryKid) { pp.kidHold -= dt; if (pp.kidHold <= 0) dropKid(pp); }
+    }
     if (baby) baby.update(dt);
+
+    // Owen "won't walk" tantrum (harder stages): he plants down and must be carried
+    if (Level.owenRefuses) {
+      const ow = players.find(pl => pl.id === 'owen');
+      if (ow && !ow.carriedBy) {
+        if (!ow.refusing) {
+          if (ow.refuseTimer == null) ow.refuseTimer = 16 + Math.random() * 12;
+          ow.refuseTimer -= dt;
+          if (ow.refuseTimer <= 0 && !ow.busyTask) {
+            ow.refusing = true; ow.refuseWhine = 0; ow.stop(); ow.intent = null;
+            if (active === players.indexOf(ow)) { active = 0; refreshCharBar(); }
+            Sound.play('whine'); speak(ow, "I don't want to walk! 😤"); shake = Math.max(shake, 5);
+          }
+        } else {
+          ow.refuseWhine -= dt;
+          if (ow.refuseWhine <= 0) { ow.refuseWhine = 3.5; speak(ow, pick(["I don't wanna! 😤", "Carry me! 🙅", "No walking! 😫"])); }
+          chaos = Math.min(100, chaos + dt * 1.1);
+        }
+      }
+    }
     for (const t of tasks) {
       if (!t.working && t.progress > 0 && t.kind !== 'milestone') t.progress = Math.max(0, t.progress - dt * 1.5);
       if (!t.working && t.progress > 0 && t.kind === 'milestone' && t.phase !== 'deliver') t.progress = Math.max(0, t.progress - dt * 1.2);
@@ -395,6 +450,10 @@
     // director spawns nuisances
     const nui = tasks.filter(t => t.kind === 'nuisance').length;
     director.update(dt, elapsed, nui, World, (t) => {
+      // crying rides the baby; tantrums/whining ride Owen — not empty floor
+      if (t.def.on === 'baby' && baby) t.follow = baby;
+      else if (t.def.on === 'owen') { const ow = players.find(pl => pl.id === 'owen'); if (ow) t.follow = ow; }
+      if (t.follow) { t.x = t.follow.x; t.y = t.follow.y; }
       tasks.push(t);
       Sound.play(t.def.type === 'cry' ? 'cry' : 'select');
       speak({ x: t.x, y: t.y - 30, r: 18 }, t.label + '!', true);
@@ -485,8 +544,25 @@
     actors.sort((a, b) => a.y - b.y);
     // tasks drawn after props but bubbles always on top; draw floor markers first
     for (const t of tasks) drawTaskMarker(t);
+    // "carry me!" glow under a refusing child
+    for (const pl of players) {
+      if (!pl.refusing) continue;
+      const pulse = 0.5 + 0.5 * Math.sin(pl.bob * 2);
+      ctx.save();
+      ctx.globalAlpha = 0.25 + pulse * 0.2; ctx.fillStyle = '#ff5d73';
+      ctx.beginPath(); ctx.ellipse(pl.x, pl.y, 30 + pulse * 6, 13 + pulse * 3, 0, 0, 7); ctx.fill();
+      ctx.restore();
+    }
     for (const a of actors) a.e.draw(ctx);
     for (const t of tasks) drawTaskBubble(t);
+    // a little "carry me" bubble over a refusing child
+    for (const pl of players) {
+      if (!pl.refusing) continue;
+      ctx.save();
+      ctx.font = `${Math.round(pl.r * 1.3)}px serif`; ctx.textAlign = 'center';
+      ctx.fillText('🤚', pl.x, pl.y - pl.r * 4.2 - Math.sin(pl.bob) * 3);
+      ctx.restore();
+    }
 
     // particles
     for (const pt of particles) {
@@ -752,6 +828,10 @@
   // ───────────────── boot ─────────────────
   function boot() {
     resize();
+    // unlock audio on the very first touch/click anywhere (mobile autoplay policy)
+    const unlock = () => Sound.unlock();
+    window.addEventListener('pointerdown', unlock);
+    window.addEventListener('touchstart', unlock);
     Input.init(canvas, { onTap, onSwitch: switchTo, onAct: () => {} });
     // title cast
     const cast = document.getElementById('titleCast');
@@ -764,6 +844,25 @@
     showScreen('title');
     requestAnimationFrame(loop);
   }
+
+  // read-only snapshot for automated tests / debugging
+  window.__hm = () => ({
+    state, active, chaos: Math.round(chaos), babyCarrier,
+    players: players.map(p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), npc: p.isNpc,
+      refusing: p.refusing, carriedBy: !!p.carriedBy, carryKid: !!p.carryKid, kidHold: +(p.kidHold || 0).toFixed(2), carryBaby: p.carryBaby, carry: p.carry })),
+    baby: baby ? { x: Math.round(baby.x), y: Math.round(baby.y), st: baby.state, placed: baby.placedSpot } : null,
+    tasks: tasks.map(t => ({ k: t.id || t.def.type, x: Math.round(t.x), y: Math.round(t.y), follow: !!t.follow, prog: +t.progress.toFixed(2), done: t.done })),
+  });
+  window.__hmForceRefuse = () => { const o = players.find(p => p.id === 'owen'); if (o) o.refuseTimer = 0.05; };
+  window.__hmSpawn = (type) => {
+    const def = Level.nuisances.find(d => d.type === type); if (!def) return;
+    const pct = World.playRect;
+    const t = new Task('nuisance', def, pct.x + pct.w / 2, pct.y + pct.h / 2);
+    if (def.on === 'baby' && baby) t.follow = baby;
+    else if (def.on === 'owen') { const ow = players.find(p => p.id === 'owen'); if (ow) t.follow = ow; }
+    if (t.follow) { t.x = t.follow.x; t.y = t.follow.y; }
+    tasks.push(t);
+  };
 
   Assets.preload(boot);
 })();

@@ -15,6 +15,11 @@ class Player {
     this.squash = 0;                  // landing squash timer
     this.walkSfxT = 0;
     this.carryBaby = false;           // true while carrying Elliot
+    this.carryKid = null;             // a refusing kid being carried
+    this.carriedBy = null;            // the parent carrying this character
+    this.refusing = false;            // "I don't want to walk!"
+    this.refuseTimer = null;
+    this.refuseWhine = 0;
     this.isNpc = false;               // wandering, not controllable
     this.npcTimer = Math.random() * 2;
   }
@@ -47,6 +52,25 @@ class Player {
 
   update(dt, world, isActive) {
     let vx = 0, vy = 0;
+    // Being carried by a parent: ride along in their arms.
+    if (this.carriedBy) {
+      const c = this.carriedBy;
+      this.facing = c.facing;
+      this.x = c.x + c.facing * c.r * 0.55;
+      this.y = c.y + 1;
+      this.moving = false; this.tx = this.ty = null;
+      this.setAnim('happy');
+      this.frameT += dt; if (this.frameT >= 0.4) { this.frameT = 0; this.frame++; }
+      return;
+    }
+    // Refusing to walk: plant down, can't be moved until carried.
+    if (this.refusing) {
+      this.tx = this.ty = null; this.moving = false; this.busyTask = null;
+      this.setAnim('idle');
+      this.bob += dt * 3;
+      this.frameT += dt; if (this.frameT >= 1 / 2.2) { this.frameT = 0; this.frame++; }
+      return;
+    }
     if (this.isNpc) this.npcWander(dt, world);
     // Keyboard steering only for the active, controllable character.
     const ax = (isActive && !this.isNpc) ? Input.axis() : { active: false };

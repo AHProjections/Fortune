@@ -50,6 +50,11 @@ const Sound = (() => {
     combo()  { blip(784, 0.1, 'square', 0.2); blip(1046, 0.12, 'square', 0.2, 0.07); },
     win()    { [523,659,784,1046,784,1046,1318].forEach((f,i)=>blip(f,0.18,'triangle',0.28,i*0.12)); },
     lose()   { [440,392,330,262,196].forEach((f,i)=>blip(f,0.25,'sawtooth',0.26,i*0.16)); },
+    babyup() { blip(700, 0.1, 'sine', 0.2, 0, 1050); blip(1050, 0.12, 'sine', 0.16, 0.08, 1300); }, // happy coo up
+    kidup()  { blip(330, 0.1, 'square', 0.2, 0, 520); blip(520, 0.1, 'square', 0.16, 0.08); },
+    carrier(){ blip(440, 0.08, 'triangle', 0.18); blip(660, 0.1, 'triangle', 0.18, 0.07); blip(880, 0.12, 'triangle', 0.2, 0.14); },
+    drop()   { blip(300, 0.1, 'sine', 0.16, 0, 180); },
+    whine()  { blip(500, 0.5, 'sawtooth', 0.18, 0, 360); },  // descending "nooo"
   };
 
   function play(name) { if (sfx[name]) sfx[name](); }
