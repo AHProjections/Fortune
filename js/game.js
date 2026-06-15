@@ -9,7 +9,7 @@
   let state = 'loading';
   let players = [], active = 0, tasks = [], particles = [], speeches = [];
   let director = null;
-  let chaos = 0, score = 0, combo = 0, comboT = 0, elapsed = 0, shake = 0;
+  let chaos = 0, score = 0, combo = 0, comboT = 0, elapsed = 0, shake = 0, flash = 0;
   let last = 0;
   let currentLevelId = CAMPAIGN[0];
   let owenIdle = 0;            // seconds Owen has been left unattended
@@ -140,6 +140,8 @@
     showScreen(null);
     Sound.startMusic();
     speak(players[active], "Let's do this!");
+    comboFlash.textContent = 'GO! 🌪️';
+    comboFlash.classList.remove('show'); void comboFlash.offsetWidth; comboFlash.classList.add('show');
   }
 
   function switchTo(i) {
@@ -150,14 +152,18 @@
     Sound.play('select');
     refreshCharBar();
     const p = players[active];
+    Sound.voice(p.id, 'say');
     if (Math.random() < 0.5) speak(p, pick(p.cfg.lines));
   }
 
   // ───────────────── interaction ─────────────────
+  function childById(id) { return id === 'baby' ? baby : players.find(p => p.id === id); }
   function actionableTargets() {
     const list = [];
     for (const t of tasks) {
       if (t.done) continue;
+      // can't dress a kid who's having a "won't walk" tantrum — calm/carry him first
+      if (t.onChild) { const ch = childById(t.onChild); if (ch && ch.refusing) continue; }
       if (t.kind === 'milestone' && t.deliverTo && t.phase === 'deliver') {
         const d = spotXY(t.deliverTo); list.push({ task: t, x: d.x, y: d.y, kind: 'task' });
       } else {
@@ -319,9 +325,10 @@
     if (t.deliverTo && p.carry === t.emoji) p.carry = null;
     markChip(t.id);
     chaos = Math.max(0, chaos + Level.chaosOnComplete);
-    Sound.play('milestone');
+    Sound.play('milestone'); Sound.voice(p.id, 'cheer');
     bumpCombo(200);
     confetti(t.x, t.y);
+    flash = 1;
     speak(p, pick(["Done!", "Boom.", "Checked off!", "Next!"]));
     flashVictory(p);
     if (Level.milestones.every(m => tasks.find(x => x.id === m.id).done)) win();
@@ -330,7 +337,7 @@
     tasks = tasks.filter(x => x !== t);
     p.busyTask = null; p.intent = null;
     chaos = Math.max(0, chaos + Level.chaosOnComplete);
-    Sound.play('success');
+    Sound.play('success'); Sound.voice(p.id, 'say');
     bumpCombo(t.def.score);
     burst(t.x, t.y, '#57c785');
     speak(p, pick(["Fixed!", "Sorted.", "Phew.", "Crisis averted!"]));
@@ -369,7 +376,11 @@
     document.getElementById('winTitle').textContent = Level.theme.sun ? 'NICE WORK! 🎉' : 'SWEET DREAMS 🌙';
     document.getElementById('winSub').textContent =
       `“${Level.name}” complete — finished with ${Math.ceil(Math.max(0, Level.duration - elapsed))}s on the clock!`;
+    const timeLeftFrac = Math.max(0, (Level.duration - elapsed) / Level.duration);
+    let stars = 1; if (chaos < 70) stars = 2; if (chaos < 42 && timeLeftFrac > 0.18) stars = 3;
+    let starStr = ''; for (let i = 0; i < 3; i++) starStr += (i < stars ? '⭐' : '☆');
     document.getElementById('winStats').innerHTML =
+      `<div class="stars">${starStr}</div>` +
       `<div>⭐ Score ${score}</div><div>🔥 Chaos survived: ${Math.round(chaos)}%</div>` +
       (justUnlocked ? `<div class="unlocked">🔓 Unlocked: ${LEVELS[nx].name}!</div>` : '');
     const nextBtn = document.getElementById('nextBtn');
@@ -441,7 +452,7 @@
           if (ow.refuseTimer <= 0 && !ow.busyTask) {
             ow.refusing = true; ow.refuseWhine = 0; ow.stop(); ow.intent = null;
             if (active === players.indexOf(ow)) { active = 0; refreshCharBar(); }
-            Sound.play('whine'); speak(ow, "I don't want to walk! 😤"); shake = Math.max(shake, 5);
+            Sound.voice('owen', 'whine'); speak(ow, "I don't want to walk! 😤"); shake = Math.max(shake, 5);
           }
         } else {
           ow.refuseWhine -= dt;
@@ -521,6 +532,7 @@
     for (const s of speeches) { s.life -= dt; s.y -= dt * 14; }
     speeches = speeches.filter(s => s.life > 0);
     if (shake > 0) shake = Math.max(0, shake - dt * 40);
+    if (flash > 0) flash = Math.max(0, flash - dt * 2.2);
   }
 
   function updateHUD() {
@@ -583,6 +595,9 @@
     }
     // speeches
     for (const s of speeches) drawSpeech(s);
+
+    // celebratory flash on completing a goal
+    if (flash > 0) { ctx.save(); ctx.globalAlpha = flash * 0.28; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, World.W, World.H); ctx.restore(); }
 
     ctx.restore();
   }

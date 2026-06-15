@@ -100,8 +100,8 @@ const LEVELS = {
       { type: 'cry',  label: 'Baby crying', emoji: '😭', duration: 1.4, expire: 13, chaos: 10, score: 100, on: 'baby' },
     ],
     duration: 135, clockStart: 7 * 60, clockEnd: 8 * 60,
-    firstNuisance: 16, nuisanceMin: 6, nuisanceMax: 10, maxNuisances: 2,
-    ambientPerNuisance: 0.95, ambientPerMilestone: 0.26, chaosOnComplete: -7, comboWindow: 4.5,
+    firstNuisance: 14, nuisanceMin: 5.5, nuisanceMax: 9.5, maxNuisances: 2,
+    ambientPerNuisance: 1.0, ambientPerMilestone: 0.27, chaosOnComplete: -7, comboWindow: 4.5,
     menace: false,
     tips: [
       { at: 0.6,  text: '👶 Tap Elliot to pick him up — he can\'t walk on his own.' },
@@ -130,8 +130,8 @@ const LEVELS = {
       { type: 'toys',    label: 'Toy mess',     emoji: '🧸', duration: 1.3, expire: 14, chaos: 8,  score: 80 },
     ],
     duration: 165, clockStart: 7 * 60, clockEnd: 8 * 60,
-    firstNuisance: 14, nuisanceMin: 5.0, nuisanceMax: 10.0, maxNuisances: 3,
-    ambientPerNuisance: 0.9, ambientPerMilestone: 0.28, chaosOnComplete: -8, comboWindow: 4.5,
+    firstNuisance: 10, nuisanceMin: 4.0, nuisanceMax: 8.0, maxNuisances: 4,
+    ambientPerNuisance: 1.1, ambientPerMilestone: 0.34, chaosOnComplete: -6, comboWindow: 4.5,
     menace: true,
     tips: [
       { at: 0.6, text: '🍼 To feed Elliot: seat him in the highchair first, THEN fetch the bottle from the fridge.' },
@@ -166,8 +166,8 @@ const LEVELS = {
       { type: 'oneshow',label: 'One more show!', emoji: '📺', duration: 1.4, expire: 11, chaos: 12, score: 100, on: 'owen' },
     ],
     duration: 175, clockStart: 19 * 60, clockEnd: 20 * 60 + 30,
-    firstNuisance: 8, nuisanceMin: 3.2, nuisanceMax: 7.2, maxNuisances: 5,
-    ambientPerNuisance: 1.3, ambientPerMilestone: 0.48, chaosOnComplete: -6, comboWindow: 4.0,
+    firstNuisance: 6, nuisanceMin: 2.8, nuisanceMax: 6.2, maxNuisances: 5,
+    ambientPerNuisance: 1.5, ambientPerMilestone: 0.52, chaosOnComplete: -6, comboWindow: 4.0,
     menace: true, owenRefuses: true,
     tips: [
       { at: 0.6, text: '🎒 Grab the baby carrier (top of the room) so you can hold Elliot AND a teddy at once!' },

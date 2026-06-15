@@ -57,7 +57,19 @@ const Sound = (() => {
     whine()  { blip(500, 0.5, 'sawtooth', 0.18, 0, 360); },  // descending "nooo"
   };
 
+  // Per-character "voices" — short vocal blips in each character's register.
+  const VOICE = { andrew: 150, kalong: 300, owen: 460, elliot: 680 };
+  function voice(id, kind) {
+    if (!enabled) return; ensure();
+    const f = VOICE[id] || 300;
+    if (kind === 'whine')      { blip(f * 1.5, 0.4, 'sawtooth', 0.16, 0, f * 0.8); }
+    else if (kind === 'coo')   { blip(f, 0.12, 'sine', 0.16, 0, f * 1.5); blip(f * 1.6, 0.12, 'sine', 0.12, 0.1); }
+    else if (kind === 'cheer') { blip(f, 0.09, 'square', 0.16); blip(f * 1.5, 0.1, 'square', 0.15, 0.07); blip(f * 2, 0.12, 'square', 0.14, 0.15); }
+    else                       { blip(f, 0.08, 'triangle', 0.15); blip(f * 1.33, 0.1, 'triangle', 0.13, 0.06); } // 'say'
+  }
+
   function play(name) { if (sfx[name]) sfx[name](); }
+  // exposed below via the returned object
 
   // Simple two-note bass pulse whose tempo rises with chaos "tension" (0..1).
   function startMusic() {
@@ -79,5 +91,5 @@ const Sound = (() => {
   function stopMusic() { if (musicTimer) { clearTimeout(musicTimer); musicTimer = null; } }
   function setTension(t) { tension = Math.max(0, Math.min(1, t)); }
 
-  return { unlock, play, startMusic, stopMusic, setTension };
+  return { unlock, play, voice, startMusic, stopMusic, setTension };
 })();

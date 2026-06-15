@@ -12,7 +12,13 @@ const W=414,H=896, pr={x:8,y:0.155*H,w:W-16,h:0.69*H};
   const at=n=>({x:pr.x+spots[n].nx*pr.w,y:pr.y+spots[n].ny*pr.h});
   await p.click('[data-level="m4"]'); await p.waitForTimeout(600);
   const tap=async(n,w)=>{const s=at(n);await p.mouse.click(s.x,s.y);await p.waitForTimeout(w);};
+  const tapOwen=async(w)=>{const s=await p.evaluate(()=>window.__hm());const o=s.players.find(x=>x.id==='owen');await p.mouse.click(o.x,o.y);await p.waitForTimeout(w);};
   const done=async()=>p.$$eval('.chip.done',e=>e.map(x=>x.textContent.trim()));
+  // DRESS: grab clothes from closet, then chase Owen to dress him
+  await tap('closet',2600);      // grab clothes
+  await tapOwen(4800);           // chase + dress
+  console.log('after dress, done:', JSON.stringify(await done()), '=>',
+    (await done()).some(c=>c.includes('Dress'))?'DRESS PASS':'DRESS FAIL');
   // FEED: carry baby to highchair, place, get bottle, feed
   await tap('playmat',3000);     // pick up baby
   await tap('highchair',3400);   // place baby in highchair

@@ -21,11 +21,11 @@ const spotsOf=async(p,id)=>p.evaluate(l=>LEVELS[l].spots,id);
   await p.waitForTimeout(1400);
   await p.click('#charbar .portrait:nth-child(2)');        // switch to Kalong mid-cook
   await p.waitForTimeout(200);
-  c=at(s,'closet'); await p.mouse.click(c.x,c.y);          // Kalong -> dress
+  c=at(s,'couch'); await p.mouse.click(c.x,c.y);           // Kalong -> tidy (plain job)
   await p.waitForTimeout(4200);
   const chips=await p.$$eval('.chip.done',e=>e.map(x=>x.textContent.trim()));
   console.log('TEST1 switch-continues — done chips:', JSON.stringify(chips), '=>',
-    (chips.some(c=>c.includes('Cook'))&&chips.some(c=>c.includes('Dress')))?'PASS':'FAIL');
+    (chips.some(c=>c.includes('Cook'))&&chips.some(c=>c.includes('Tidy')))?'PASS':'FAIL');
 
   // ---- TEST 2: Owen refuses, parent carries, then drops (bedtime) ----
   await load(p,'bedtime');
