@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#2b1b4a">
+<title>Hughesmania</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <!-- The game world -->
+  <canvas id="game"></canvas>
+
+  <!-- Heads-up display -->
+  <div id="hud" class="hidden">
+    <div id="tophud">
+      <div id="topbar">
+        <div class="stat" id="clockWrap"><span class="stat-ico">🕐</span><span id="clock">7:00</span></div>
+        <div id="chaosWrap">
+          <div class="chaos-label">CHAOS</div>
+          <div id="chaosBar"><div id="chaosFill"></div><div id="chaosFace">😀</div></div>
+        </div>
+        <div class="stat" id="scoreWrap"><span class="stat-ico">⭐</span><span id="score">0</span></div>
+      </div>
+      <div id="checklist"></div>
+    </div>
+    <div id="charbar"></div>
+  </div>
+
+  <!-- Overlays -->
+  <div id="overlay">
+    <section id="screen-title" class="screen">
+      <h1 class="logo">HUGHES<span>MANIA</span></h1>
+      <p class="tag">A frantic game about surviving family mornings 🍼🔥</p>
+      <div id="titleCast"></div>
+      <button class="btn big" data-action="play">▶ PLAY</button>
+      <button class="btn ghost" data-action="howto">How to play</button>
+    </section>
+
+    <section id="screen-howto" class="screen hidden">
+      <h2>How to play</h2>
+      <ul class="howto">
+        <li><b>Tap a glowing job</b> to send your character to do it.</li>
+        <li><b>Tap a family portrait</b> (bottom) to switch who you control.</li>
+        <li>🍼 <b>Feeding</b> needs a bottle from the fridge first — grab it, then go to the highchair.</li>
+        <li>🔑 <b>Lost keys</b> are under the couch — only <b>Owen</b> or <b>baby Elliot</b> can crawl under!</li>
+        <li>Finish all <b>5 morning goals</b> before 8:00… and don't let the <b>Chaos meter</b> explode. 💥</li>
+      </ul>
+      <p class="kbd-note">On a computer: WASD/arrows to move, <b>1–4</b> to switch, <b>space</b> to act.</p>
+      <button class="btn big" data-action="play">Let's go!</button>
+      <button class="btn ghost" data-action="back">Back</button>
+    </section>
+
+    <section id="screen-win" class="screen hidden">
+      <h2 class="win-title">OUT THE DOOR! 🚪🎉</h2>
+      <p id="winSub" class="tag"></p>
+      <div id="winStats" class="bigstats"></div>
+      <button class="btn big" data-action="play">Play again</button>
+      <button class="btn ghost" data-action="title">Main menu</button>
+    </section>
+
+    <section id="screen-lose" class="screen hidden">
+      <h2 class="lose-title">TOTAL MELTDOWN 💥</h2>
+      <p id="loseSub" class="tag"></p>
+      <div id="loseStats" class="bigstats"></div>
+      <button class="btn big" data-action="play">Try again</button>
+      <button class="btn ghost" data-action="title">Main menu</button>
+    </section>
+  </div>
+</div>
+
+<script src="assets/game/sprites.js"></script>
+<script src="js/assets.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/input.js"></script>
+<script src="js/entities.js"></script>
+<script src="js/tasks.js"></script>
+<script src="js/level.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
