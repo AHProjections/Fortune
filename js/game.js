@@ -426,7 +426,7 @@
       `<div>⭐ Score ${score}</div><div>✅ Goals done: ${done}/${Level.milestones.length}</div>`;
     hud.classList.add('hidden');
     // the comedic resignation, then the results
-    showCutscene(LOSE_MOMENTS, () => showScreen('lose'));
+    showCutscene([pick(LOSE_MOMENTS)], () => showScreen('lose'));
   }
 
   // ───────────────── update ─────────────────
@@ -820,16 +820,18 @@
     { sprite: 'owen/idle_0.png',    text: 'Owen, sprinting in: "DAAAD! I\'M AWAKE! Is it breakfast?! Where are my socks?!" 🧦' },
     { sprite: 'andrew/interact_0.png', text: 'Andrew: "…and there it goes." Get everyone fed, dressed, and out the door! 🌪️' },
   ];
+  // narrator-voice beats — one is chosen at random each time
   const WIN_MOMENTS = [
-    { sprite: 'owen/happy_0.png',    text: 'Owen tugs your sleeve: "Best morning ever, Daddy. You\'re my favorite." 💕' },
-    { sprite: 'elliot/happy_0.png',  text: 'Elliot grabs your finger, looks up, and beams: "…dada." 🥹 Worth it.' },
-    { sprite: 'owen/victory_0.png',  text: 'Owen hugs your leg: "Can we do today again tomorrow?" Maybe, kiddo. Maybe.' },
-    { sprite: 'elliot/happy_0.png',  text: 'Elliot giggles so hard he gets the hiccups. You\'d do it all again. 💞' },
+    { sprite: 'owen/happy_0.png',    text: 'Owen looks up into your eyes and says, "You\'re the best parents ever." You are overcome with meaning. It was all worth it. 💖' },
+    { sprite: 'elliot/happy_0.png',  text: 'Elliot curls a tiny hand around your finger and sighs, perfectly content. The exhaustion melts away. This is the whole point. 🥹' },
+    { sprite: 'owen/victory_0.png',  text: 'For one impossible moment, everyone is fed, dressed, and happy — and you did that. Against all odds, you are nailing this. ✨' },
+    { sprite: 'elliot/happy_0.png',  text: 'A gummy, delighted baby laugh fills the room. Whatever today threw at you, you\'d do every second of it again. 💞' },
   ];
   const LOSE_MOMENTS = [
-    { sprite: 'andrew/idle_0.png', text: 'You sink onto the couch. "Fine. …Screen time it is." 📺' },
-    { sprite: 'owen/happy_0.png',  text: 'Owen, delighted: "YESSS, cartoons!" (Everyone\'s alive. That counts… right?)' },
-    { sprite: 'kalong/idle_0.png', text: 'A little voice: "Am I a bad parent?" …Nah. Just a deeply tired one. ☕ Try again?' },
+    { sprite: 'andrew/idle_0.png',    text: 'You succumb to fatigue and surrender the remote. The kids cheer. And maybe — just maybe — you ARE a bad parent. 📺' },
+    { sprite: 'kalong/idle_0.png',    text: 'The chaos wins. You melt into the couch as cartoons babysit your children. Parent of the Year: quietly cancelled. 🏆🚫' },
+    { sprite: 'owen/happy_0.png',     text: 'Snacks for dinner. Screens till who-knows-when. Pants: optional. You tell yourself it builds character. It does not. 😬' },
+    { sprite: 'andrew/interact_0.png',text: 'You wave the white flag. Somewhere, a parenting book bursts into flame. At least everyone is, technically, still alive. 🔥' },
   ];
   function showCutscene(panels, onDone) {
     csPanels = panels; csIdx = 0; csDone = onDone;
