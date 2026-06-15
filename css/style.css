@@ -293,6 +293,25 @@ h2 { font-family: 'Baloo 2', sans-serif; font-size: clamp(26px, 8vw, 40px); marg
 .lc-blurb { font-size: 13px; opacity: 0.85; }
 .bigstats .unlocked { color: var(--leaf); margin-top: 6px; }
 
+/* cutscenes (intro / heartwarming win / resigned lose) */
+.cutscene { cursor: pointer; }
+#csSprite {
+  height: clamp(120px, 34vw, 190px);
+  image-rendering: auto;
+  filter: drop-shadow(0 8px 8px rgba(0,0,0,0.25));
+  animation: csbob 1.8s ease-in-out infinite;
+  margin-bottom: 10px;
+}
+@keyframes csbob { 0%,100%{ transform: translateY(0) rotate(-2deg);} 50%{ transform: translateY(-8px) rotate(2deg);} }
+#csText {
+  font-size: clamp(16px, 4.6vw, 20px);
+  font-weight: 600;
+  line-height: 1.45;
+  color: #4a3770;
+  min-height: 3.2em;
+  margin: 4px 8px 8px;
+}
+
 /* coaching tip banner */
 #tipbar {
   align-self: center;

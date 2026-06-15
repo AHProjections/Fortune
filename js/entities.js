@@ -20,6 +20,7 @@ class Player {
     this.refusing = false;            // "I don't want to walk!"
     this.refuseTimer = null;
     this.refuseWhine = 0;
+    this.frozen = false;              // held still while being dressed
     this.isNpc = false;               // wandering, not controllable
     this.npcTimer = Math.random() * 2;
   }
@@ -69,6 +70,14 @@ class Player {
       this.setAnim('idle');
       this.bob += dt * 3;
       this.frameT += dt; if (this.frameT >= 1 / 2.2) { this.frameT = 0; this.frame++; }
+      return;
+    }
+    // Held still while a parent dresses this child.
+    if (this.frozen) {
+      this.tx = this.ty = null; this.moving = false;
+      this.setAnim('happy');
+      this.bob += dt * 3;
+      this.frameT += dt; if (this.frameT >= 0.4) { this.frameT = 0; this.frame++; }
       return;
     }
     if (this.isNpc) this.npcWander(dt, world);

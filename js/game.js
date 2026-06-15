@@ -129,6 +129,8 @@
       const sp = spotXY(m.spot);
       const t = new Task('milestone', m, sp.x, sp.y);
       t.id = m.id; t.phase = 'work';
+      // jobs that ride a child (e.g. dress Owen) chase that child around
+      if (m.onChild) { const ch = players.find(pl => pl.id === m.onChild); if (ch) { t.follow = ch; t.x = ch.x; t.y = ch.y; } }
       return t;
     });
 
@@ -168,7 +170,7 @@
       if (players.some(p => p.carry === t.requires.item)) continue;
       // for baby+item jobs, only reveal the supply once the baby is in place
       // (unless we have the carrier, which lets us hold the baby and an item)
-      if (t.needsBaby && !babyCarrier && !(baby && baby.placedSpot === t.spot)) continue;
+      if (t.needsChild === 'baby' && !babyCarrier && !(baby && baby.placedSpot === t.spot)) continue;
       const f = spotXY(t.requires.from);
       list.push({ x: f.x, y: f.y, kind: 'source', item: t.requires.item });
     }
@@ -266,7 +268,7 @@
     }
 
     // baby-care jobs: the baby must be settled at this station first
-    if (t.needsBaby && !(baby && baby.placedSpot === t.spot)) {
+    if (t.needsChild === 'baby' && !(baby && baby.placedSpot === t.spot)) {
       if (p.carryBaby) {
         baby.state = 'placed'; baby.placedSpot = t.spot; baby.carrier = null; p.carryBaby = false;
         const pos = spotXY(t.spot); baby.x = pos.x; baby.y = pos.y + p.r * 0.3;
@@ -374,7 +376,8 @@
     if (nx) { nextBtn.classList.remove('hidden'); nextBtn.textContent = `Next: ${LEVELS[nx].name} ▶`; }
     else nextBtn.classList.add('hidden');
     hud.classList.add('hidden');
-    showScreen('win');
+    // a heartwarming kid moment, then the results
+    showCutscene([pick(WIN_MOMENTS)], () => showScreen('win'));
   }
   function lose(reason) {
     if (state !== 'playing') return;
@@ -387,7 +390,8 @@
     document.getElementById('loseStats').innerHTML =
       `<div>⭐ Score ${score}</div><div>✅ Goals done: ${done}/${Level.milestones.length}</div>`;
     hud.classList.add('hidden');
-    showScreen('lose');
+    // the comedic resignation, then the results
+    showCutscene(LOSE_MOMENTS, () => showScreen('lose'));
   }
 
   // ───────────────── update ─────────────────
@@ -416,6 +420,10 @@
     players.forEach((p, i) => p.update(dt, World, i === active));
     // every controllable parent keeps working its assigned task (not just the selected one)
     for (let i = 0; i < nPlayable; i++) resolvePlayer(players[i], dt);
+    // a child being dressed holds still
+    const dressing = {};
+    for (const t of tasks) if (t.onChild && t.working && t.follow) dressing[t.onChild] = true;
+    for (const pl of players) pl.frozen = (pl.id === 'owen' && !!dressing['owen']);
     // a carried child calms after a moment and gets set down (no fiddly drop needed)
     for (let i = 0; i < nPlayable; i++) {
       const pp = players[i];
@@ -680,7 +688,7 @@
     let label = t.emoji;
     if (t.deliverTo && t.phase === 'deliver') { const d = spotXY(t.deliverTo); bx = d.x; by = d.y; label = `${t.emoji}➜🚪`; }
     // baby-care job still waiting for the baby to be brought over
-    else if (t.needsBaby && !(baby && baby.placedSpot === t.spot)) { label = '👶' + t.emoji; }
+    else if (t.needsChild === 'baby' && !(baby && baby.placedSpot === t.spot)) { label = '👶' + t.emoji; }
     const r = 22 * t.spawnPop;
     by -= (t.kind === 'milestone' ? 52 : 30) + Math.sin(t.bob) * 4;
     // bubble
@@ -764,6 +772,46 @@
   }
   function hideTip() { const b = document.getElementById('tipbar'); b.classList.remove('show'); clearTimeout(tipTimer); }
 
+  // ───────────────── cutscenes ─────────────────
+  let introSeen = false, csPanels = [], csIdx = 0, csDone = null;
+  const INTRO = [
+    { sprite: 'andrew/happy_0.png', text: 'Andrew: "Ahh… coffee\'s hot, the house is quiet. Today is going to be a GOOD morning." ☕' },
+    { sprite: 'owen/idle_0.png',    text: 'Owen, sprinting in: "DAAAD! I\'M AWAKE! Is it breakfast?! Where are my socks?!" 🧦' },
+    { sprite: 'andrew/interact_0.png', text: 'Andrew: "…and there it goes." Get everyone fed, dressed, and out the door! 🌪️' },
+  ];
+  const WIN_MOMENTS = [
+    { sprite: 'owen/happy_0.png',    text: 'Owen tugs your sleeve: "Best morning ever, Daddy. You\'re my favorite." 💕' },
+    { sprite: 'elliot/happy_0.png',  text: 'Elliot grabs your finger, looks up, and beams: "…dada." 🥹 Worth it.' },
+    { sprite: 'owen/victory_0.png',  text: 'Owen hugs your leg: "Can we do today again tomorrow?" Maybe, kiddo. Maybe.' },
+    { sprite: 'elliot/happy_0.png',  text: 'Elliot giggles so hard he gets the hiccups. You\'d do it all again. 💞' },
+  ];
+  const LOSE_MOMENTS = [
+    { sprite: 'andrew/idle_0.png', text: 'You sink onto the couch. "Fine. …Screen time it is." 📺' },
+    { sprite: 'owen/happy_0.png',  text: 'Owen, delighted: "YESSS, cartoons!" (Everyone\'s alive. That counts… right?)' },
+    { sprite: 'kalong/idle_0.png', text: 'A little voice: "Am I a bad parent?" …Nah. Just a deeply tired one. ☕ Try again?' },
+  ];
+  function showCutscene(panels, onDone) {
+    csPanels = panels; csIdx = 0; csDone = onDone;
+    renderCs(); showScreen('cutscene');
+  }
+  function renderCs() {
+    const pn = csPanels[csIdx];
+    const img = document.getElementById('csSprite');
+    img.src = 'assets/game/' + pn.sprite;
+    document.getElementById('csText').textContent = pn.text;
+    document.getElementById('csBtn').textContent = (csIdx < csPanels.length - 1) ? 'Next ▸' : 'Continue ▸';
+  }
+  function csAdvance() {
+    Sound.play('select');
+    csIdx++;
+    if (csIdx >= csPanels.length) { const d = csDone; csDone = null; csPanels = []; if (d) d(); }
+    else renderCs();
+  }
+  function launchLevel(id) {
+    if (id === 'm1' && !introSeen) { introSeen = true; showCutscene(INTRO, () => startGame('m1')); }
+    else startGame(id);
+  }
+
   // ───────────────── overlay control ─────────────────
   function showScreen(name) {
     overlay.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
@@ -796,10 +844,11 @@
     if (!btn) return;
     Sound.unlock();
     const a = btn.dataset.action;
-    if (a === 'levels') gotoLevels();
-    else if (a === 'level') startGame(btn.dataset.level);
+    if (a === 'csNext') csAdvance();
+    else if (a === 'levels') gotoLevels();
+    else if (a === 'level') launchLevel(btn.dataset.level);
     else if (a === 'again') startGame(currentLevelId);
-    else if (a === 'next') { const nx = nextLevelId(); if (nx) startGame(nx); else gotoLevels(); }
+    else if (a === 'next') { const nx = nextLevelId(); if (nx) launchLevel(nx); else gotoLevels(); }
     else if (a === 'howto') showScreen('howto');
     else if (a === 'back') showScreen('title');
     else if (a === 'title') { state = 'title'; hud.classList.add('hidden'); hideTip(); showScreen('title'); }

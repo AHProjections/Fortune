@@ -65,7 +65,7 @@ const LEVELS = {
     theme: DAY, spots: MORNING_SPOTS,
     milestones: [
       { id: 'cook',  label: 'Cook breakfast', emoji: '🍳', spot: 'stove',  duration: 2.4 },
-      { id: 'dress', label: 'Dress Owen',     emoji: '👕', spot: 'closet', duration: 2.2 },
+      { id: 'dress', label: 'Dress Owen',     emoji: '👕', spot: 'closet', duration: 2.2, onChild: 'owen', requires: { item: '👕', from: 'closet' } },
       { id: 'tidy',  label: 'Tidy the toys',  emoji: '🧹', spot: 'couch',  duration: 2.4 },
     ],
     nuisances: [
@@ -78,6 +78,8 @@ const LEVELS = {
     menace: false,
     tips: [
       { at: 0.6, text: '👇 Tap a parent\'s face at the bottom to switch who you control. Split the work!' },
+      { at: 7.0, text: '👕 To dress Owen: grab clothes from the closet, then chase him down to put them on!' },
+      { at: 14.0, text: 'Tip: a parent keeps doing a job even after you switch away. Assign and move on!' },
     ],
   },
 
@@ -90,8 +92,8 @@ const LEVELS = {
     theme: DAY, spots: MORNING_SPOTS,
     milestones: [
       { id: 'cook',   label: 'Cook breakfast', emoji: '🍳', spot: 'stove',    duration: 2.4 },
-      { id: 'dress',  label: 'Dress Owen',     emoji: '👕', spot: 'closet',   duration: 2.2 },
-      { id: 'diaper', label: 'Change diaper',  emoji: '🧷', spot: 'changing', duration: 2.4, needsBaby: true },
+      { id: 'dress',  label: 'Dress Owen',     emoji: '👕', spot: 'closet',   duration: 2.2, onChild: 'owen', requires: { item: '👕', from: 'closet' } },
+      { id: 'diaper', label: 'Change diaper',  emoji: '🧷', spot: 'changing', duration: 2.4, needsChild: 'baby' },
     ],
     nuisances: [
       { type: 'toys', label: 'Toy mess',    emoji: '🧸', duration: 1.3, expire: 15, chaos: 8,  score: 80 },
@@ -116,9 +118,9 @@ const LEVELS = {
     theme: DAY, spots: MORNING_SPOTS,
     milestones: [
       { id: 'cook',   label: 'Cook breakfast', emoji: '🍳', spot: 'stove',     duration: 2.6 },
-      { id: 'diaper', label: 'Change diaper',  emoji: '🧷', spot: 'changing',  duration: 2.4, needsBaby: true },
-      { id: 'feed',   label: 'Feed Elliot',    emoji: '🍼', spot: 'highchair', duration: 2.2, needsBaby: true, requires: { item: '🍼', from: 'fridge' } },
-      { id: 'dress',  label: 'Dress Owen',     emoji: '👕', spot: 'closet',    duration: 2.2 },
+      { id: 'diaper', label: 'Change diaper',  emoji: '🧷', spot: 'changing',  duration: 2.4, needsChild: 'baby' },
+      { id: 'feed',   label: 'Feed Elliot',    emoji: '🍼', spot: 'highchair', duration: 2.2, needsChild: 'baby', requires: { item: '🍼', from: 'fridge' } },
+      { id: 'dress',  label: 'Dress Owen',     emoji: '👕', spot: 'closet',    duration: 2.2, onChild: 'owen', requires: { item: '👕', from: 'closet' } },
       { id: 'keys',   label: 'Find the keys',  emoji: '🔑', spot: 'couch',     duration: 2.0, crawlOnly: true, deliverTo: 'door' },
     ],
     nuisances: [
@@ -153,9 +155,9 @@ const LEVELS = {
     milestones: [
       { id: 'bath',    label: 'Bath time',    emoji: '🛁', spot: 'bath',    duration: 2.8 },
       { id: 'teeth',   label: 'Brush teeth',  emoji: '🪥', spot: 'sink',    duration: 2.2 },
-      { id: 'pajamas', label: 'Pajamas on',   emoji: '🧦', spot: 'dresser', duration: 2.2 },
+      { id: 'pajamas', label: 'Pajamas on',   emoji: '🧦', spot: 'dresser', duration: 2.2, onChild: 'owen', requires: { item: '🧦', from: 'dresser' } },
       { id: 'story',   label: 'Read a story', emoji: '📖', spot: 'chair',   duration: 2.8 },
-      { id: 'tuckin',  label: 'Tuck in',      emoji: '😴', spot: 'crib',    duration: 2.4, needsBaby: true, requires: { item: '🧸', from: 'toybox' } },
+      { id: 'tuckin',  label: 'Tuck in',      emoji: '😴', spot: 'crib',    duration: 2.4, needsChild: 'baby', requires: { item: '🧸', from: 'toybox' } },
     ],
     nuisances: [
       { type: 'jump',   label: 'Bed jumping!',   emoji: '🛏️', duration: 1.6, expire: 9,  chaos: 15, score: 120, calm: true, on: 'owen' },

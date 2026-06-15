@@ -13,7 +13,8 @@ class Task {
     this.deliverTo = def.deliverTo || null;   // spot name to drop a carried item
     this.crawlOnly = !!def.crawlOnly;
     this.calm = !!def.calm;
-    this.needsBaby = !!def.needsBaby;          // baby must be settled at this spot
+    this.needsChild = def.needsChild || null;  // 'baby' must be settled at this spot
+    this.onChild = def.onChild || null;        // milestone that rides a child (e.g. dress Owen)
     this.spot = def.spot || null;              // station name
     this.timeLeft = kind === 'nuisance' ? def.expire : Infinity;
     this.maxTime = this.timeLeft;
