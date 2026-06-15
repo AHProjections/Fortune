@@ -41,18 +41,18 @@ const LEVELS = {
     theme: DAY, spots: MORNING_SPOTS,
     milestones: [
       { id: 'cook',  label: 'Cook breakfast', emoji: '🍳', spot: 'stove',  duration: 2.2 },
-      { id: 'dress', label: 'Dress Owen',     emoji: '👕', spot: 'closet', duration: 2.0 },
+      { id: 'dress', label: 'Dress Owen',     emoji: '👕', spot: 'closet', duration: 2.0, onChild: 'owen', requires: { item: '👕', from: 'closet' } },
     ],
     nuisances: [
       { type: 'toys', label: 'Toy mess', emoji: '🧸', duration: 1.3, expire: 16, chaos: 7, score: 80 },
     ],
-    duration: 95, clockStart: 7 * 60, clockEnd: 8 * 60,
+    duration: 100, clockStart: 7 * 60, clockEnd: 8 * 60,
     firstNuisance: 22, nuisanceMin: 9, nuisanceMax: 13, maxNuisances: 1,
     ambientPerNuisance: 0.7, ambientPerMilestone: 0.18, chaosOnComplete: -8, comboWindow: 5.0,
     menace: false,
     tips: [
       { at: 0.6,  text: '👆 Tap a glowing job to send Dad to do it.' },
-      { at: 8.0,  text: 'Owen is running around on his own — you can\'t control him yet.' },
+      { at: 6.0,  text: '👕 To dress Owen: grab the clothes from the closet, then catch him to put them on — he won\'t hold still!' },
       { at: 15.0, text: 'Finish every job before the clock reaches 8:00!' },
     ],
   },

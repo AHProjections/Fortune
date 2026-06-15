@@ -3,7 +3,7 @@ const W=414,H=896, pr={x:8,y:0.155*H,w:W-16,h:0.69*H};
 
 // step: ['tap',spot,wait] | ['switch',nth,wait] | ['owen',wait]
 const PLANS = {
-  m1: [['tap','stove',4400],['tap','closet',4400]],
+  m1: [['tap','stove',4400],['tap','closet',2600],['owen',4800]],
   m2: [['tap','stove',4400],['tap','closet',2600],['owen',4800],['tap','couch',4400]],
   m3: [['tap','stove',4400],['tap','closet',2600],['owen',4800],['tap','playmat',3200],['tap','changing',4600]],
   m4: [['tap','stove',4400],['tap','closet',2600],['owen',4800],
