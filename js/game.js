@@ -196,15 +196,16 @@
     Sound.unlock();
     const p = players[active];
     const targets = actionableTargets();
-    // Tapping a kid: carry him — UNLESS your hands already hold his clothes, in
-    // which case fall through and dress him (the clothes job sits on the kid too).
+    // Tapping a kid: if you're holding an item one of his "apply" jobs needs
+    // (clothes, soup, tissue…), do that exact job; if your hands are empty,
+    // carry him; otherwise fall through to normal target selection.
     const kidT = targets.find(t => t.kind === 'kid');
     if (kidT) {
       const dk = Math.hypot(kidT.x - x, kidT.y - y);
-      const dressJob = tasks.find(t => !t.done && t.onChild === kidT.kid.id && t.requires);
-      const holdingClothes = dressJob && p.carry === dressJob.requires.item;
-      if (dk < Math.max(72, World.playRect.w * 0.14) && !holdingClothes) {
-        p.intent = kidT; p.goTo(kidT.x, kidT.y); return;
+      if (dk < Math.max(72, World.playRect.w * 0.14)) {
+        const itemJob = tasks.find(t => !t.done && t.onChild === kidT.kid.id && t.requires && p.carry === t.requires.item);
+        if (itemJob) { p.intent = { kind: 'task', task: itemJob, x: itemJob.x, y: itemJob.y }; p.goTo(itemJob.x, itemJob.y); return; }
+        if (!p.carry && !p.carryBaby) { p.intent = kidT; p.goTo(kidT.x, kidT.y); return; }
       }
     }
     let best = null, bestD = Infinity;
@@ -685,6 +686,9 @@
     crib:     { emoji: '🛏️', c: '#c8d8ff', label: 'Bed' },
     playmat:  { emoji: '🟦', c: '#bfe0c8', label: 'Play mat' },
     carrier:  { emoji: '🎒', c: '#ffe39e', label: 'Carrier' },
+    cubby:    { emoji: '🧤', c: '#cfe6ff', label: 'Cubby' },
+    bench:    { emoji: '🪑', c: '#e3d4bd', label: 'Bench' },
+    cabinet:  { emoji: '💊', c: '#e6f0e6', label: 'Cabinet' },
   };
   function drawProps() {
     const base = Math.min(World.W, World.H) * 0.085;

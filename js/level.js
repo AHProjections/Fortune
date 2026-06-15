@@ -174,10 +174,79 @@ const LEVELS = {
       { at: 8.0, text: '🎒 Grab the carrier (top of room) to hold Elliot AND a teddy. 🧸 Tuck-in needs Elliot + teddy in the crib.' },
     ],
   },
+
+  // ── Bonus stage — Snow Day: bundle everyone up in layers ──
+  snow: {
+    id: 'snow', name: 'Snow Day', icon: '⛄',
+    blurb: 'Bundle both kids into a hundred layers before they melt down.',
+    playable: ['andrew', 'kalong'], npcs: ['owen'], baby: true, carrier: false,
+    babyStart: 'playmat',
+    theme: { wallTop: '#a9d3f5', wallBot: '#d8ecff', floorTop: '#e9eef4', floorBot: '#c2d2e2', sky: '#dff1ff', sun: true },
+    spots: {
+      closet: { nx: 0.17, ny: 0.30 }, cubby: { nx: 0.82, ny: 0.30 },
+      stove:  { nx: 0.50, ny: 0.30 }, bench: { nx: 0.83, ny: 0.62 },
+      changing: { nx: 0.17, ny: 0.62 }, playmat: { nx: 0.45, ny: 0.74 }, couch: { nx: 0.70, ny: 0.84 },
+    },
+    milestones: [
+      { id: 'coat',    label: 'Coat on Owen',   emoji: '🧥', spot: 'closet', duration: 2.2, onChild: 'owen', requires: { item: '🧥', from: 'closet' } },
+      { id: 'mittens', label: 'Mittens on',     emoji: '🧤', spot: 'cubby',  duration: 2.0, onChild: 'owen', requires: { item: '🧤', from: 'cubby' } },
+      { id: 'boots',   label: 'Boots on',       emoji: '🥾', spot: 'bench',  duration: 2.2, needsChild: 'owen', requires: { item: '🥾', from: 'cubby' } },
+      { id: 'bundle',  label: 'Bundle Elliot',  emoji: '🧣', spot: 'changing', duration: 2.4, needsChild: 'baby', requires: { item: '🧣', from: 'closet' } },
+      { id: 'cocoa',   label: 'Make cocoa',     emoji: '☕', spot: 'stove',  duration: 2.4 },
+    ],
+    nuisances: [
+      { type: 'cold',  label: "I'm freezing!",   emoji: '🥶', duration: 1.5, expire: 10, chaos: 13, score: 110, on: 'owen' },
+      { type: 'snow',  label: 'Snow tracked in', emoji: '❄️', duration: 1.4, expire: 12, chaos: 10, score: 90 },
+      { type: 'cry',   label: 'Baby crying',     emoji: '😭', duration: 1.4, expire: 11, chaos: 12, score: 100, on: 'baby' },
+      { type: 'wet',   label: 'Wet mittens',     emoji: '💧', duration: 1.3, expire: 13, chaos: 9,  score: 80 },
+    ],
+    duration: 170, clockStart: 9 * 60, clockEnd: 10 * 60,
+    firstNuisance: 10, nuisanceMin: 3.8, nuisanceMax: 7.5, maxNuisances: 4,
+    ambientPerNuisance: 1.2, ambientPerMilestone: 0.4, chaosOnComplete: -7, comboWindow: 4.5,
+    menace: true,
+    tips: [
+      { id: 't1', at: 0.6, text: '⛄ Bundle Owen: grab each layer (coat, mittens) and catch him to put it on. Boots: carry him to the bench!' },
+      { at: 8.0, text: '🧣 Bring Elliot to the changing mat with a scarf to bundle him up.' },
+    ],
+  },
+
+  // ── Bonus stage — Sick Day: care for a sick kid in bed ──
+  sick: {
+    id: 'sick', name: 'Sick Day', icon: '🤒',
+    blurb: "Owen's sick in bed. Keep him comfy and the baby germ-free.",
+    playable: ['andrew', 'kalong'], npcs: ['owen'], baby: true, carrier: false,
+    babyStart: 'playmat',
+    theme: { wallTop: '#b7c7b0', wallBot: '#d6e2d2', floorTop: '#d8c9ad', floorBot: '#b3a385', sky: '#cfe0e8', sun: true },
+    spots: {
+      cabinet: { nx: 0.17, ny: 0.30 }, stove: { nx: 0.50, ny: 0.30 }, sink: { nx: 0.83, ny: 0.30 },
+      changing: { nx: 0.18, ny: 0.66 }, playmat: { nx: 0.46, ny: 0.66 }, couch: { nx: 0.68, ny: 0.82 },
+    },
+    milestones: [
+      { id: 'temp',   label: 'Take temperature', emoji: '🌡️', spot: 'couch', duration: 2.2, needsChild: 'owen' },
+      { id: 'meds',   label: 'Give medicine',    emoji: '💊', spot: 'couch', duration: 2.2, needsChild: 'owen', requires: { item: '💊', from: 'cabinet' } },
+      { id: 'soup',   label: 'Soup for Owen',    emoji: '🍲', spot: 'stove', duration: 2.4, onChild: 'owen', requires: { item: '🍲', from: 'stove' } },
+      { id: 'tissue', label: 'Wipe his nose',    emoji: '🤧', spot: 'sink',  duration: 2.0, onChild: 'owen', requires: { item: '🧻', from: 'sink' } },
+      { id: 'soothe', label: 'Soothe Elliot',    emoji: '🍼', spot: 'changing', duration: 2.4, needsChild: 'baby' },
+    ],
+    nuisances: [
+      { type: 'germs', label: 'Germs spreading!', emoji: '🦠', duration: 1.5, expire: 10, chaos: 14, score: 120, on: 'owen' },
+      { type: 'fever', label: 'Fever spike',      emoji: '🥵', duration: 1.4, expire: 9,  chaos: 13, score: 110, on: 'owen' },
+      { type: 'cry',   label: 'Baby crying',      emoji: '😭', duration: 1.4, expire: 11, chaos: 12, score: 100, on: 'baby' },
+      { type: 'mess',  label: 'Tissue mess',      emoji: '🧻', duration: 1.3, expire: 13, chaos: 9,  score: 80 },
+    ],
+    duration: 165, clockStart: 12 * 60, clockEnd: 13 * 60,
+    firstNuisance: 9, nuisanceMin: 3.6, nuisanceMax: 7.2, maxNuisances: 4,
+    ambientPerNuisance: 1.25, ambientPerMilestone: 0.42, chaosOnComplete: -7, comboWindow: 4.5,
+    menace: false,
+    tips: [
+      { id: 't1', at: 0.6, text: '🤒 Carry Owen to bed, then bring the thermometer & medicine to him there.' },
+      { at: 8.0, text: '🍲 Soup and tissues: grab them, then go to Owen to use them on him.' },
+    ],
+  },
 };
 
 // Stage order — also the unlock order.
-const CAMPAIGN = ['m1', 'm2', 'm3', 'm4', 'bedtime'];
+const CAMPAIGN = ['m1', 'm2', 'm3', 'm4', 'bedtime', 'snow', 'sick'];
 
 // Owen's mischief if he's left idle too long (only on stages with menace=true).
 const OWEN_MISCHIEF = [
