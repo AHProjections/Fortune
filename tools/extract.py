@@ -22,17 +22,33 @@ SHEETS = {
     "elliot": "ee1adece-E37B12BB55914F9C94D4725BBC3D9F05.png",
 }
 
-def alpha_from_brightness(rgb, lo=28, hi=70):
-    b = rgb.max(axis=2).astype(np.float32)
-    a = np.clip((b - lo) / (hi - lo), 0, 1)
-    return a
+def make_alpha(rgb, thresh=46, max_hole=900):
+    """Key out the dark background, but KEEP dark interior detail (eyes, outlines).
+
+    The naive 'darker = more transparent' approach punched holes through the
+    eyes. Instead: foreground = anything brighter than the background; then fill
+    SMALL interior holes (eyes, nostrils, sparkles) while leaving large gaps
+    (between limbs) transparent. A tiny blur softens the cut edge.
+    """
+    bright = rgb.max(axis=2)
+    fg = bright > thresh
+    filled = ndimage.binary_fill_holes(fg)
+    holes = filled & (~fg)
+    lbl, n = ndimage.label(holes)
+    if n:
+        sizes = ndimage.sum(np.ones(lbl.shape), lbl, index=np.arange(1, n + 1))
+        keep = np.where(sizes < max_hole)[0] + 1
+        small = np.isin(lbl, keep)
+        fg = fg | small
+    a = ndimage.gaussian_filter(fg.astype(np.float32) * 255.0, 0.6)
+    return np.clip(a, 0, 255)
 
 def extract(name, path):
     im = Image.open(path).convert("RGB")
     W, H = im.size
     rgb = np.asarray(im)
-    alpha = alpha_from_brightness(rgb)
-    mask = alpha > 0.35
+    full_alpha_f = make_alpha(rgb)
+    mask = full_alpha_f > 110
 
     # Only look at the animation rows (top portion); drop faces/items/ui band.
     row_cut = int(H * 0.60)
@@ -63,7 +79,7 @@ def extract(name, path):
     blobs.sort(key=lambda b: (round(b[1] / (H * 0.12)), b[0]))
 
     meta = []
-    full_alpha = (alpha * 255).astype(np.uint8)
+    full_alpha = full_alpha_f.astype(np.uint8)
     for idx, (x0, y0, x1, y1, area) in enumerate(blobs):
         pad = 6
         cx0, cy0 = max(0, x0 - pad), max(0, y0 - pad)

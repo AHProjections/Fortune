@@ -4,212 +4,212 @@ window.SPRITES = {
   "idle": [
    {
     "src": "andrew/idle_0.png",
-    "w": 59,
-    "h": 139
+    "w": 61,
+    "h": 140
    },
    {
     "src": "andrew/idle_1.png",
-    "w": 59,
-    "h": 139
+    "w": 61,
+    "h": 140
    }
   ],
   "walk": [
    {
     "src": "andrew/walk_0.png",
-    "w": 72,
-    "h": 138
+    "w": 74,
+    "h": 140
    },
    {
     "src": "andrew/walk_1.png",
-    "w": 71,
-    "h": 136
+    "w": 73,
+    "h": 138
    },
    {
     "src": "andrew/walk_2.png",
-    "w": 63,
-    "h": 137
+    "w": 65,
+    "h": 139
    }
   ],
   "interact": [
    {
     "src": "andrew/interact_0.png",
-    "w": 99,
-    "h": 135
+    "w": 101,
+    "h": 137
    }
   ],
   "happy": [
    {
     "src": "andrew/happy_0.png",
-    "w": 106,
-    "h": 140
+    "w": 107,
+    "h": 141
    }
   ],
   "victory": [
    {
     "src": "andrew/victory_0.png",
-    "w": 129,
-    "h": 124
+    "w": 136,
+    "h": 123
    }
   ],
-  "_h": 139
+  "_h": 140
  },
  "kalong": {
   "idle": [
    {
     "src": "kalong/idle_0.png",
-    "w": 64,
-    "h": 134
+    "w": 65,
+    "h": 136
    },
    {
     "src": "kalong/idle_1.png",
-    "w": 62,
-    "h": 134
+    "w": 64,
+    "h": 136
    }
   ],
   "walk": [
    {
     "src": "kalong/walk_0.png",
-    "w": 78,
+    "w": 82,
     "h": 135
    },
    {
     "src": "kalong/walk_1.png",
-    "w": 80,
-    "h": 134
+    "w": 83,
+    "h": 136
    },
    {
     "src": "kalong/walk_2.png",
-    "w": 82,
-    "h": 135
+    "w": 92,
+    "h": 107
    }
   ],
   "interact": [
    {
     "src": "kalong/interact_0.png",
-    "w": 91,
-    "h": 138
+    "w": 130,
+    "h": 147
    }
   ],
   "happy": [
    {
     "src": "kalong/happy_0.png",
-    "w": 137,
-    "h": 134
+    "w": 92,
+    "h": 138
    }
   ],
   "victory": [
    {
     "src": "kalong/victory_0.png",
-    "w": 133,
-    "h": 117
+    "w": 125,
+    "h": 125
    }
   ],
-  "_h": 134
+  "_h": 136
  },
  "owen": {
   "idle": [
    {
     "src": "owen/idle_0.png",
-    "w": 64,
-    "h": 131
+    "w": 62,
+    "h": 130
    },
    {
     "src": "owen/idle_1.png",
     "w": 64,
-    "h": 131
+    "h": 130
    }
   ],
   "walk": [
    {
     "src": "owen/walk_0.png",
     "w": 73,
-    "h": 130
+    "h": 129
    },
    {
     "src": "owen/walk_1.png",
-    "w": 74,
-    "h": 132
+    "w": 71,
+    "h": 129
    },
    {
     "src": "owen/walk_2.png",
-    "w": 73,
-    "h": 132
+    "w": 71,
+    "h": 130
    }
   ],
   "interact": [
    {
     "src": "owen/interact_0.png",
-    "w": 83,
+    "w": 81,
     "h": 122
    }
   ],
   "happy": [
    {
     "src": "owen/happy_0.png",
-    "w": 121,
+    "w": 119,
     "h": 123
    }
   ],
   "victory": [
    {
     "src": "owen/victory_0.png",
-    "w": 122,
-    "h": 136
+    "w": 119,
+    "h": 134
    }
   ],
-  "_h": 131
+  "_h": 130
  },
  "elliot": {
   "idle": [
    {
     "src": "elliot/idle_0.png",
-    "w": 92,
-    "h": 150
+    "w": 76,
+    "h": 134
    },
    {
     "src": "elliot/idle_1.png",
-    "w": 91,
-    "h": 151
+    "w": 75,
+    "h": 135
    }
   ],
   "walk": [
    {
     "src": "elliot/walk_0.png",
-    "w": 91,
-    "h": 149
+    "w": 75,
+    "h": 133
    },
    {
     "src": "elliot/walk_1.png",
-    "w": 93,
-    "h": 149
+    "w": 77,
+    "h": 133
    },
    {
     "src": "elliot/walk_2.png",
-    "w": 113,
-    "h": 142
+    "w": 97,
+    "h": 126
    }
   ],
   "interact": [
    {
     "src": "elliot/interact_0.png",
-    "w": 115,
-    "h": 148
+    "w": 99,
+    "h": 132
    }
   ],
   "happy": [
    {
     "src": "elliot/happy_0.png",
-    "w": 86,
-    "h": 140
+    "w": 70,
+    "h": 124
    }
   ],
   "victory": [
    {
     "src": "elliot/victory_0.png",
-    "w": 145,
-    "h": 130
+    "w": 129,
+    "h": 122
    }
   ],
-  "_h": 150
+  "_h": 134
  }
 };

@@ -892,6 +892,11 @@
     Sound.unlock();
     const a = btn.dataset.action;
     if (a === 'csNext') csAdvance();
+    else if (a === 'code') {
+      const c = (window.prompt('Enter access code:') || '').trim().toUpperCase();
+      if (c === 'HUGHES') { setUnlocked(CAMPAIGN.length); buildLevelSelect(); window.alert('🔓 All stages unlocked! Welcome, Hughes family.'); }
+      else if (c) window.alert('Hmm, that code didn\'t work.');
+    }
     else if (a === 'levels') gotoLevels();
     else if (a === 'level') launchLevel(btn.dataset.level);
     else if (a === 'again') startGame(currentLevelId);
