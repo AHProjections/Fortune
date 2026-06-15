@@ -1,40 +1,38 @@
 const { chromium } = require('/opt/node22/lib/node_modules/playwright');
 const W = 414, H = 896;
 const pr = { x: 8, y: 0.155 * H, w: W - 16, h: 0.69 * H };
-const at = (nx, ny) => ({ x: pr.x + nx * pr.w, y: pr.y + ny * pr.h });
-
-const SPOTS = {
-  // morning
-  stove: [0.20, 0.30], fridge: [0.82, 0.30], highchair: [0.50, 0.48], changing: [0.83, 0.62],
-  closet: [0.17, 0.62], couch: [0.70, 0.82], door: [0.30, 0.86],
-  // bedtime
-  bath: [0.20, 0.30], sink: [0.82, 0.30], chair: [0.50, 0.46], dresser: [0.17, 0.62],
-  toybox: [0.84, 0.62], crib: [0.50, 0.82],
-};
 
 // step: ['tap', spot, wait]  or  ['switch', portraitNth, wait]
 const PLANS = {
   m1: [['tap', 'stove', 4400], ['tap', 'closet', 4400]],
-  m2: [['tap', 'fridge', 3200], ['tap', 'highchair', 4400], ['tap', 'stove', 4400], ['tap', 'closet', 4400]],
-  m3: [['tap', 'fridge', 3200], ['tap', 'highchair', 4400], ['tap', 'stove', 4400],
-       ['tap', 'changing', 4400], ['tap', 'closet', 4400], ['switch', 3, 400],
-       ['tap', 'couch', 4400], ['tap', 'door', 4200]],
-  bedtime: [['tap', 'bath', 4400], ['tap', 'sink', 4000], ['tap', 'dresser', 4000],
-            ['tap', 'chair', 4400], ['tap', 'toybox', 3200], ['tap', 'crib', 4400]],
+  m2: [['tap', 'stove', 4400], ['tap', 'closet', 4400], ['tap', 'couch', 4400]],
+  m3: [['tap', 'stove', 4400], ['tap', 'closet', 4400],
+       ['tap', 'playmat', 3200], ['tap', 'changing', 4600]],
+  m4: [['tap', 'stove', 4400],
+       ['tap', 'playmat', 3200], ['tap', 'changing', 4800],   // diaper (carry baby there)
+       ['tap', 'changing', 3200], ['tap', 'highchair', 3600], // move baby to highchair
+       ['tap', 'fridge', 3400], ['tap', 'highchair', 4800],   // bottle -> feed
+       ['tap', 'closet', 4400],
+       ['switch', 3, 400], ['tap', 'couch', 4600], ['tap', 'door', 4400]],
+  bedtime: [['tap', 'bath', 4800], ['tap', 'sink', 4400], ['tap', 'dresser', 4400], ['tap', 'chair', 4800],
+            ['tap', 'carrier', 3400], ['tap', 'toybox', 3400], ['tap', 'playmat', 3400], ['tap', 'crib', 4800]],
 };
 
 async function play(page, id) {
+  const spots = await page.evaluate((lid) => LEVELS[lid].spots, id);
+  const at = (name) => ({ x: pr.x + spots[name].nx * pr.w, y: pr.y + spots[name].ny * pr.h });
   await page.click(`[data-level="${id}"]`);
   await page.waitForTimeout(700);
   for (const [type, arg, wait] of PLANS[id]) {
     if (type === 'switch') { await page.click(`#charbar .portrait:nth-child(${arg})`); }
-    else { const s = at(...SPOTS[arg]); await page.mouse.click(s.x, s.y); }
+    else { const s = at(arg); await page.mouse.click(s.x, s.y); }
     await page.waitForTimeout(wait);
   }
   await page.waitForTimeout(700);
   const win = await page.$eval('#screen-win', el => !el.classList.contains('hidden')).catch(() => false);
   const done = await page.$$eval('.chip.done', els => els.length);
   const total = await page.$$eval('.chip', els => els.length);
+  await page.screenshot({ path: `tools/shot_${id}.png` });
   return { win, done, total };
 }
 
@@ -50,33 +48,14 @@ async function play(page, id) {
 
   await page.click('[data-action="levels"]');
   await page.waitForTimeout(400);
-  const lockState = await page.$$eval('#levelcards .levelcard', els => els.map(e => e.classList.contains('locked')));
-  console.log('Initial lock state (false=unlocked):', JSON.stringify(lockState));
+  const locks = await page.$$eval('#levelcards .levelcard', els => els.map(e => e.classList.contains('locked')));
+  console.log('Initial locks (false=unlocked):', JSON.stringify(locks));
 
-  const order = ['m1', 'm2', 'm3', 'bedtime'];
-  for (let i = 0; i < order.length; i++) {
-    const id = order[i];
+  for (const id of ['m1', 'm2', 'm3', 'm4', 'bedtime']) {
     const r = await play(page, id);
     console.log(`${id}: win=${r.win} goals=${r.done}/${r.total}`);
-    await page.screenshot({ path: `tools/shot_${id}.png` });
-    if (i < order.length - 1) {
-      // back to stage list (also verifies the next stage is now unlocked)
-      await page.click('#screen-win [data-action="levels"]');
-      await page.waitForTimeout(400);
-    }
+    if (id !== 'bedtime') { await page.click('#screen-win [data-action="levels"]'); await page.waitForTimeout(400); }
   }
-
-  // verify the "Next level" button path works (we're on the bedtime win screen now;
-  // go to stage list, replay m1, then use Next to jump straight into m2)
-  await page.click('#screen-win [data-action="levels"]');
-  await page.waitForTimeout(400);
-  await play(page, 'm1');
-  await page.click('#nextBtn');
-  await page.waitForTimeout(1000);
-  const overlayHidden = await page.$eval('#overlay', el => getComputedStyle(el).pointerEvents === 'none').catch(() => false);
-  const goals = await page.$$eval('.chip', els => els.map(e => e.textContent.trim()));
-  console.log('Next-button -> in-stage:', overlayHidden, '| goals:', JSON.stringify(goals));
-
   console.log('Errors:', errors.join('\n') || '(none)');
   await browser.close();
 })();

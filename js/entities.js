@@ -14,6 +14,9 @@ class Player {
     this.moving = false;
     this.squash = 0;                  // landing squash timer
     this.walkSfxT = 0;
+    this.carryBaby = false;           // true while carrying Elliot
+    this.isNpc = false;               // wandering, not controllable
+    this.npcTimer = Math.random() * 2;
   }
 
   layout(playRect) {
@@ -30,10 +33,23 @@ class Player {
   goTo(x, y) { this.tx = x; this.ty = y; }
   stop() { this.tx = this.ty = null; }
 
+  npcWander(dt, world) {
+    this.npcTimer -= dt;
+    if (this.npcTimer <= 0) {
+      const p = world.playRect;
+      if (Math.random() < 0.6) {
+        this.tx = p.x + p.w * (0.15 + Math.random() * 0.7);
+        this.ty = p.y + p.h * (0.35 + Math.random() * 0.55);
+      } else { this.tx = this.ty = null; } // pause
+      this.npcTimer = 1.4 + Math.random() * 2.6;
+    }
+  }
+
   update(dt, world, isActive) {
     let vx = 0, vy = 0;
-    // Keyboard steering only for the active character.
-    const ax = isActive ? Input.axis() : { active: false };
+    if (this.isNpc) this.npcWander(dt, world);
+    // Keyboard steering only for the active, controllable character.
+    const ax = (isActive && !this.isNpc) ? Input.axis() : { active: false };
     if (this.busyTask) {
       // standing still while performing a task
       this.moving = false;
@@ -48,15 +64,18 @@ class Player {
 
     this.moving = (vx || vy) && !this.busyTask;
     if (this.moving) {
-      this.x += vx * this.speed * dt;
-      this.y += vy * this.speed * dt;
+      const spd = this.speed * (this.isNpc ? 0.55 : 1);
+      this.x += vx * spd * dt;
+      this.y += vy * spd * dt;
       if (Math.abs(vx) > 0.05) this.facing = vx > 0 ? 1 : -1;
       // clamp to floor
       const p = world.playRect;
       this.x = Math.max(p.x + this.r, Math.min(p.x + p.w - this.r, this.x));
       this.y = Math.max(p.y + p.h * 0.18, Math.min(p.y + p.h - 6, this.y));
-      this.walkSfxT -= dt;
-      if (this.walkSfxT <= 0) { Sound.play('walk'); this.walkSfxT = 0.26; }
+      if (!this.isNpc) {
+        this.walkSfxT -= dt;
+        if (this.walkSfxT <= 0) { Sound.play('walk'); this.walkSfxT = 0.26; }
+      }
     }
 
     // animation selection
@@ -102,6 +121,64 @@ class Player {
       ctx.font = `${Math.round(this.r * 1.6)}px serif`;
       ctx.textAlign = 'center';
       ctx.fillText(this.carry, this.x + this.facing * this.r * 0.7, this.y - this.r * 4.4 - bobY);
+      ctx.restore();
+    }
+  }
+}
+
+// Elliot — a carry-only baby NPC. He cannot walk; a parent must carry him,
+// and while held a parent's hands are full (unless they have the carrier).
+class Baby {
+  constructor() {
+    this.id = 'elliot';
+    this.state = 'loose';       // 'loose' | 'carried' | 'placed'
+    this.carrier = null;        // Player carrying him
+    this.placedSpot = null;     // spot name when placed
+    this.x = 0; this.y = 0;
+    this.facing = 1;
+    this.frame = 0; this.frameT = 0;
+    this.bob = Math.random() * 6;
+  }
+
+  layout(playRect) {
+    const desired = playRect.h * 0.125;
+    this.k = desired / Assets.nativeH('elliot');
+    this.r = desired * 0.28;
+  }
+
+  // depth-sort key: ride with the carrier when held
+  get sortY() { return this.state === 'carried' && this.carrier ? this.carrier.y + 0.5 : this.y; }
+
+  update(dt) {
+    this.bob += dt * 3;
+    this.frameT += dt;
+    if (this.frameT >= 0.4) { this.frameT = 0; this.frame++; }
+    if (this.state === 'carried' && this.carrier) {
+      const c = this.carrier;
+      this.facing = c.facing;
+      this.x = c.x + c.facing * c.r * 0.5;
+      this.y = c.y - c.r * 1.7;     // tucked in the arms
+    }
+  }
+
+  draw(ctx) {
+    const carried = this.state === 'carried';
+    const anim = carried ? 'happy' : 'idle';
+    const img = Assets.get('elliot', anim, this.frame);
+    const bobY = carried ? 0 : Math.sin(this.bob) * 2.2;
+    if (!carried) {
+      ctx.save();
+      ctx.globalAlpha = 0.22; ctx.fillStyle = '#000';
+      ctx.beginPath(); ctx.ellipse(this.x, this.y, this.r * 1.1, this.r * 0.4, 0, 0, 7); ctx.fill();
+      ctx.restore();
+    }
+    if (img && img.naturalHeight) {
+      const h = img.naturalHeight * this.k, w = img.naturalWidth * this.k;
+      ctx.save();
+      ctx.translate(this.x, this.y - bobY);
+      ctx.scale(this.facing, 1);
+      // feet-anchored when on the ground; centred in the arms when carried
+      ctx.drawImage(img, -w / 2, carried ? -h * 0.78 : -h, w, h);
       ctx.restore();
     }
   }

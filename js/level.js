@@ -1,8 +1,11 @@
 // ─────────────── Shared roster + the difficulty-ramped campaign ───────────────
-// `Level` is the *current* level (mutable). `LEVELS` holds every stage and
+// `Level` is the current stage (mutable); `LEVELS` holds every stage and
 // `CAMPAIGN` is their order. Each stage adds ONE new idea and ramps a little
-// faster, so new players get time to learn. game.js reads `Level.*` at
-// call-time, so reassigning Level switches stages.
+// faster. Per stage:
+//   playable : ids the player can control (switch between)
+//   npcs     : ids that appear but wander on their own (not controllable)
+//   baby     : true if Elliot (carry-only) is present
+//   carrier  : true if a baby-carrier can be found this stage
 
 const ROSTER = [
   { id: 'andrew', name: 'Andrew', speedFrac: 0.27, displayFrac: 0.205,
@@ -14,8 +17,8 @@ const ROSTER = [
   { id: 'owen',   name: 'Owen',   speedFrac: 0.30, displayFrac: 0.150,
     abilities: { crawl: true }, calmMult: 1.0, workMult: 1.0,
     lines: ["I found it!", "I'm helping!", "Look at me go!", "Can I have a snack?"] },
-  { id: 'elliot', name: 'Elliot', speedFrac: 0.22, displayFrac: 0.125,
-    abilities: { crawl: true }, calmMult: 1.0, workMult: 1.1,
+  { id: 'elliot', name: 'Elliot', speedFrac: 0.0, displayFrac: 0.125,
+    abilities: { crawl: true }, calmMult: 1.0, workMult: 1.0,
     lines: ["goo goo", "ba ba ba!", "*giggles*", "*blows raspberry*"] },
 ];
 
@@ -24,17 +27,17 @@ const NIGHT = { wallTop: '#2b2350', wallBot: '#4a3e7a', floorTop: '#6b5a8f', flo
 
 const MORNING_SPOTS = {
   stove:    { nx: 0.20, ny: 0.30 }, fridge:   { nx: 0.82, ny: 0.30 },
-  highchair:{ nx: 0.50, ny: 0.48 }, changing: { nx: 0.83, ny: 0.62 },
+  highchair:{ nx: 0.50, ny: 0.46 }, changing: { nx: 0.83, ny: 0.62 },
   closet:   { nx: 0.17, ny: 0.62 }, couch:    { nx: 0.70, ny: 0.82 },
-  door:     { nx: 0.30, ny: 0.86 },
+  door:     { nx: 0.30, ny: 0.86 }, playmat:  { nx: 0.46, ny: 0.78 },
 };
 
 const LEVELS = {
-  // ── Stage 1 — Slow Start: one parent, one kid, two jobs, almost no chaos ──
+  // ── Stage 1 — Slow Start: one parent, the basics ──
   m1: {
     id: 'm1', name: 'Slow Start', icon: '🍳',
-    blurb: 'Just Dad and Owen. Learn the ropes.',
-    cast: ['andrew', 'owen'],
+    blurb: 'Just Dad. Learn to move and do jobs.',
+    playable: ['andrew'], npcs: ['owen'], baby: false, carrier: false,
     theme: DAY, spots: MORNING_SPOTS,
     milestones: [
       { id: 'cook',  label: 'Cook breakfast', emoji: '🍳', spot: 'stove',  duration: 2.2 },
@@ -49,45 +52,72 @@ const LEVELS = {
     menace: false,
     tips: [
       { at: 0.6,  text: '👆 Tap a glowing job to send Dad to do it.' },
-      { at: 7.0,  text: '👇 Tap a face at the bottom to switch who you control.' },
+      { at: 8.0,  text: 'Owen is running around on his own — you can\'t control him yet.' },
       { at: 15.0, text: 'Finish every job before the clock reaches 8:00!' },
     ],
   },
 
-  // ── Stage 2 — Hungry Baby: adds Elliot + the fetch-a-bottle mechanic ──
+  // ── Stage 2 — Teamwork: a second parent + switching ──
   m2: {
-    id: 'm2', name: 'Hungry Baby', icon: '🍼',
-    blurb: 'Baby Elliot joins. Some jobs need supplies first.',
-    cast: ['andrew', 'owen', 'elliot'],
+    id: 'm2', name: 'Teamwork', icon: '🤝',
+    blurb: 'Mom joins. Switch between two parents.',
+    playable: ['andrew', 'kalong'], npcs: ['owen'], baby: false, carrier: false,
     theme: DAY, spots: MORNING_SPOTS,
     milestones: [
-      { id: 'cook',  label: 'Cook breakfast', emoji: '🍳', spot: 'stove',     duration: 2.4 },
-      { id: 'dress', label: 'Dress Owen',     emoji: '👕', spot: 'closet',    duration: 2.2 },
-      { id: 'feed',  label: 'Feed Elliot',    emoji: '🍼', spot: 'highchair', duration: 2.2, requires: { item: '🍼', from: 'fridge' } },
+      { id: 'cook',  label: 'Cook breakfast', emoji: '🍳', spot: 'stove',  duration: 2.4 },
+      { id: 'dress', label: 'Dress Owen',     emoji: '👕', spot: 'closet', duration: 2.2 },
+      { id: 'tidy',  label: 'Tidy the toys',  emoji: '🧹', spot: 'couch',  duration: 2.4 },
     ],
     nuisances: [
-      { type: 'toys', label: 'Toy mess',    emoji: '🧸', duration: 1.3, expire: 14, chaos: 9,  score: 80 },
-      { type: 'cry',  label: 'Baby crying', emoji: '😭', duration: 1.4, expire: 12, chaos: 11, score: 100 },
+      { type: 'toys',    label: 'Toy mess',     emoji: '🧸', duration: 1.3, expire: 14, chaos: 9,  score: 80 },
+      { type: 'tantrum', label: 'Owen tantrum', emoji: '😡', duration: 1.6, expire: 12, chaos: 12, score: 110, calm: true },
     ],
     duration: 120, clockStart: 7 * 60, clockEnd: 8 * 60,
     firstNuisance: 14, nuisanceMin: 6, nuisanceMax: 10, maxNuisances: 2,
     ambientPerNuisance: 0.95, ambientPerMilestone: 0.28, chaosOnComplete: -7, comboWindow: 4.5,
     menace: false,
     tips: [
-      { at: 0.6, text: '🍼 To feed Elliot, first grab the bottle from the fridge, then go to the highchair.' },
+      { at: 0.6, text: '👇 Tap a parent\'s face at the bottom to switch who you control. Split the work!' },
     ],
   },
 
-  // ── Stage 3 — The Full Routine: whole family, keys-under-the-couch, menace ──
+  // ── Stage 3 — Hands Full: Elliot arrives. He can't walk — carry him! ──
   m3: {
-    id: 'm3', name: 'The Full Routine', icon: '🔑',
-    blurb: 'The whole family. Out the door by 8:00!',
-    cast: ['andrew', 'kalong', 'owen', 'elliot'],
+    id: 'm3', name: 'Hands Full', icon: '👶',
+    blurb: 'Baby Elliot can\'t walk — carry him to where he needs to be.',
+    playable: ['andrew', 'kalong'], npcs: ['owen'], baby: true, carrier: false,
+    babyStart: 'playmat',
+    theme: DAY, spots: MORNING_SPOTS,
+    milestones: [
+      { id: 'cook',   label: 'Cook breakfast', emoji: '🍳', spot: 'stove',    duration: 2.4 },
+      { id: 'dress',  label: 'Dress Owen',     emoji: '👕', spot: 'closet',   duration: 2.2 },
+      { id: 'diaper', label: 'Change diaper',  emoji: '🧷', spot: 'changing', duration: 2.4, needsBaby: true },
+    ],
+    nuisances: [
+      { type: 'toys', label: 'Toy mess',    emoji: '🧸', duration: 1.3, expire: 15, chaos: 8,  score: 80 },
+      { type: 'cry',  label: 'Baby crying', emoji: '😭', duration: 1.4, expire: 13, chaos: 10, score: 100 },
+    ],
+    duration: 135, clockStart: 7 * 60, clockEnd: 8 * 60,
+    firstNuisance: 16, nuisanceMin: 6, nuisanceMax: 10, maxNuisances: 2,
+    ambientPerNuisance: 0.95, ambientPerMilestone: 0.26, chaosOnComplete: -7, comboWindow: 4.5,
+    menace: false,
+    tips: [
+      { at: 0.6,  text: '👶 Tap Elliot to pick him up — he can\'t walk on his own.' },
+      { at: 7.0,  text: 'Carry him to the changing table to change his diaper. Your hands are full while holding him!' },
+    ],
+  },
+
+  // ── Stage 4 — The Full Routine: feeding (baby + bottle), keys, full chaos ──
+  m4: {
+    id: 'm4', name: 'The Full Routine', icon: '🔑',
+    blurb: 'The whole family. Some jobs need the baby AND a supply.',
+    playable: ['andrew', 'kalong', 'owen'], npcs: [], baby: true, carrier: false,
+    babyStart: 'playmat',
     theme: DAY, spots: MORNING_SPOTS,
     milestones: [
       { id: 'cook',   label: 'Cook breakfast', emoji: '🍳', spot: 'stove',     duration: 2.6 },
-      { id: 'feed',   label: 'Feed Elliot',    emoji: '🍼', spot: 'highchair', duration: 2.2, requires: { item: '🍼', from: 'fridge' } },
-      { id: 'diaper', label: 'Change diaper',  emoji: '🧷', spot: 'changing',  duration: 2.6 },
+      { id: 'diaper', label: 'Change diaper',  emoji: '🧷', spot: 'changing',  duration: 2.4, needsBaby: true },
+      { id: 'feed',   label: 'Feed Elliot',    emoji: '🍼', spot: 'highchair', duration: 2.2, needsBaby: true, requires: { item: '🍼', from: 'fridge' } },
       { id: 'dress',  label: 'Dress Owen',     emoji: '👕', spot: 'closet',    duration: 2.2 },
       { id: 'keys',   label: 'Find the keys',  emoji: '🔑', spot: 'couch',     duration: 2.0, crawlOnly: true, deliverTo: 'door' },
     ],
@@ -97,32 +127,35 @@ const LEVELS = {
       { type: 'cry',     label: 'Baby crying',  emoji: '😭', duration: 1.4, expire: 11, chaos: 12, score: 100 },
       { type: 'toys',    label: 'Toy mess',     emoji: '🧸', duration: 1.3, expire: 14, chaos: 8,  score: 80 },
     ],
-    duration: 150, clockStart: 7 * 60, clockEnd: 8 * 60,
-    firstNuisance: 9, nuisanceMin: 4.0, nuisanceMax: 8.0, maxNuisances: 4,
-    ambientPerNuisance: 1.15, ambientPerMilestone: 0.4, chaosOnComplete: -6, comboWindow: 4.0,
+    duration: 165, clockStart: 7 * 60, clockEnd: 8 * 60,
+    firstNuisance: 14, nuisanceMin: 5.0, nuisanceMax: 10.0, maxNuisances: 3,
+    ambientPerNuisance: 0.9, ambientPerMilestone: 0.28, chaosOnComplete: -8, comboWindow: 4.5,
     menace: true,
     tips: [
-      { at: 0.6, text: '🔑 The keys are under the couch — only Owen or baby Elliot can crawl under!' },
+      { at: 0.6, text: '🍼 To feed Elliot: seat him in the highchair first, THEN fetch the bottle from the fridge.' },
+      { at: 9.0, text: '🔑 The keys are under the couch — only Owen can crawl under!' },
     ],
   },
 
-  // ── Stage 4 — Bedtime Battle: the toughest stage ──
+  // ── Stage 5 — Bedtime Battle: hardest, plus the baby-carrier to find ──
   bedtime: {
     id: 'bedtime', name: 'Bedtime Battle', icon: '🌙',
-    blurb: 'Everyone into bed by 8:30. They will resist.',
-    cast: ['andrew', 'kalong', 'owen', 'elliot'],
+    blurb: 'Everyone in bed by 8:30. Find the carrier to free your hands!',
+    playable: ['andrew', 'kalong', 'owen'], npcs: [], baby: true, carrier: true,
+    babyStart: 'playmat',
     theme: NIGHT,
     spots: {
-      bath:   { nx: 0.20, ny: 0.30 }, sink:    { nx: 0.82, ny: 0.30 },
-      chair:  { nx: 0.50, ny: 0.46 }, dresser: { nx: 0.17, ny: 0.62 },
+      bath:   { nx: 0.20, ny: 0.30 }, sink:    { nx: 0.80, ny: 0.30 },
+      chair:  { nx: 0.50, ny: 0.44 }, dresser: { nx: 0.17, ny: 0.62 },
       toybox: { nx: 0.84, ny: 0.62 }, crib:    { nx: 0.50, ny: 0.82 },
+      carrier:{ nx: 0.50, ny: 0.30 }, playmat: { nx: 0.30, ny: 0.70 },
     },
     milestones: [
       { id: 'bath',    label: 'Bath time',    emoji: '🛁', spot: 'bath',    duration: 2.8 },
       { id: 'teeth',   label: 'Brush teeth',  emoji: '🪥', spot: 'sink',    duration: 2.2 },
       { id: 'pajamas', label: 'Pajamas on',   emoji: '🧦', spot: 'dresser', duration: 2.2 },
       { id: 'story',   label: 'Read a story', emoji: '📖', spot: 'chair',   duration: 2.8 },
-      { id: 'tuckin',  label: 'Tuck in',      emoji: '😴', spot: 'crib',    duration: 2.4, requires: { item: '🧸', from: 'toybox' } },
+      { id: 'tuckin',  label: 'Tuck in',      emoji: '😴', spot: 'crib',    duration: 2.4, needsBaby: true, requires: { item: '🧸', from: 'toybox' } },
     ],
     nuisances: [
       { type: 'jump',   label: 'Bed jumping!',   emoji: '🛏️', duration: 1.6, expire: 9,  chaos: 15, score: 120, calm: true },
@@ -130,18 +163,19 @@ const LEVELS = {
       { type: 'monster',label: 'Monster check!', emoji: '👻', duration: 1.5, expire: 9,  chaos: 14, score: 110 },
       { type: 'oneshow',label: 'One more show!', emoji: '📺', duration: 1.4, expire: 11, chaos: 12, score: 100 },
     ],
-    duration: 165, clockStart: 19 * 60, clockEnd: 20 * 60 + 30,
-    firstNuisance: 7, nuisanceMin: 3.0, nuisanceMax: 7.0, maxNuisances: 5,
-    ambientPerNuisance: 1.35, ambientPerMilestone: 0.5, chaosOnComplete: -6, comboWindow: 4.0,
+    duration: 175, clockStart: 19 * 60, clockEnd: 20 * 60 + 30,
+    firstNuisance: 8, nuisanceMin: 3.2, nuisanceMax: 7.2, maxNuisances: 5,
+    ambientPerNuisance: 1.3, ambientPerMilestone: 0.48, chaosOnComplete: -6, comboWindow: 4.0,
     menace: true,
     tips: [
-      { at: 0.6, text: '🧸 Grab a teddy from the toy box before you can tuck Elliot in.' },
+      { at: 0.6, text: '🎒 Grab the baby carrier (top of the room) so you can hold Elliot AND a teddy at once!' },
+      { at: 9.0, text: '🧸 Tuck-in needs Elliot in the crib with a teddy from the toy box.' },
     ],
   },
 };
 
 // Stage order — also the unlock order.
-const CAMPAIGN = ['m1', 'm2', 'm3', 'bedtime'];
+const CAMPAIGN = ['m1', 'm2', 'm3', 'm4', 'bedtime'];
 
 // Owen's mischief if he's left idle too long (only on stages with menace=true).
 const OWEN_MISCHIEF = [

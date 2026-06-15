@@ -14,6 +14,9 @@
   let currentLevelId = CAMPAIGN[0];
   let owenIdle = 0;            // seconds Owen has been left unattended
   let tipIdx = 0;             // next coaching tip to show
+  let baby = null;            // Elliot (carry-only NPC), or null
+  let babyCarrier = false;    // found the baby carrier this stage?
+  let nPlayable = 1;          // how many of `players` are controllable (first N)
 
   // ── progression: how many campaign stages are unlocked (saved in browser) ──
   function getUnlocked() {
@@ -23,7 +26,11 @@
   function setUnlocked(n) {
     localStorage.setItem('hughesmania_unlocked', String(Math.max(getUnlocked(), n)));
   }
-  function castConfigs() { return Level.cast.map(id => ROSTER.find(c => c.id === id)); }
+  function rosterCfg(id) { return ROSTER.find(c => c.id === id); }
+  // playable parents/kids first, then wandering NPCs (Elliot is separate)
+  function castConfigs() {
+    return [...Level.playable.map(rosterCfg), ...(Level.npcs || []).map(rosterCfg)];
+  }
 
   // combo flash element
   const comboFlash = document.createElement('div');
@@ -57,7 +64,7 @@
   function buildCharBar() {
     const bar = document.getElementById('charbar');
     bar.innerHTML = '';
-    castConfigs().forEach((c, i) => {
+    Level.playable.map(rosterCfg).forEach((c, i) => {
       const d = document.createElement('div');
       d.className = 'portrait' + (i === active ? ' active' : '');
       d.innerHTML = `<img src="assets/game/${c.id}/idle_0.png" alt="${c.name}"><div class="pname">${c.name}</div>`;
@@ -94,18 +101,28 @@
     Level = LEVELS[currentLevelId];
     state = 'playing';
     chaos = 0; score = 0; combo = 0; comboT = 0; elapsed = 0; shake = 0; owenIdle = 0; tipIdx = 0;
+    babyCarrier = false;
     particles = []; speeches = [];
     director = new Director(Level);
-    active = 0; // start as the first family member in the cast
+    active = 0; // start as the first controllable parent
 
+    nPlayable = Level.playable.length;
     const cast = castConfigs();
     players = cast.map(c => new Player(c));
-    players.forEach(p => p.layout(World.playRect));
+    players.forEach((p, i) => { p.layout(World.playRect); p.isNpc = i >= nPlayable; });
     const cx = World.playRect.x + World.playRect.w / 2;
     const cy = World.playRect.y + World.playRect.h * 0.62;
     const n = players.length;
     players.forEach((p, i) => { p.x = cx + (i - (n - 1) / 2) * World.playRect.w * 0.15; p.y = cy; });
     cast.forEach((c, i) => { players[i].abilities = c.abilities; players[i].workMult = c.workMult || 1; });
+
+    // Elliot the baby (carry-only NPC)
+    if (Level.baby) {
+      baby = new Baby();
+      baby.layout(World.playRect);
+      const s = spotXY(Level.babyStart || 'playmat');
+      baby.x = s.x; baby.y = s.y;
+    } else { baby = null; }
 
     // build milestone tasks
     tasks = Level.milestones.map(m => {
@@ -124,7 +141,7 @@
   }
 
   function switchTo(i) {
-    if (state !== 'playing' || i === active) return;
+    if (state !== 'playing' || i === active || i < 0 || i >= nPlayable) return;
     players[active].stop();
     players[active].busyTask = null;
     active = i;
@@ -149,9 +166,16 @@
     for (const t of tasks) {
       if (t.done || !t.requires) continue;
       if (players.some(p => p.carry === t.requires.item)) continue;
+      // for baby+item jobs, only reveal the supply once the baby is in place
+      // (unless we have the carrier, which lets us hold the baby and an item)
+      if (t.needsBaby && !babyCarrier && !(baby && baby.placedSpot === t.spot)) continue;
       const f = spotXY(t.requires.from);
       list.push({ x: f.x, y: f.y, kind: 'source', item: t.requires.item });
     }
+    // pick up the baby
+    if (baby && baby.state !== 'carried') list.push({ kind: 'baby', x: baby.x, y: baby.y });
+    // pick up the baby carrier
+    if (Level.carrier && !babyCarrier) { const c = spotXY('carrier'); list.push({ kind: 'carrier', x: c.x, y: c.y }); }
     return list;
   }
 
@@ -190,7 +214,20 @@
     if (dist > reach) { p.busyTask = null; return; }
 
     p.stop();
+    if (it.kind === 'carrier') {
+      babyCarrier = true; Sound.play('pickup'); speak(p, 'Carrier on! 🎒'); burst(p.x, p.y - p.r * 4, '#57c785');
+      p.intent = null; p.busyTask = null; return;
+    }
+    if (it.kind === 'baby') {
+      if (baby.state !== 'carried') {
+        if (p.carry && !babyCarrier) { speak(p, 'Hands full! 🤲'); p.intent = null; p.busyTask = null; return; }
+        baby.state = 'carried'; baby.carrier = p; baby.placedSpot = null; p.carryBaby = true;
+        Sound.play('pickup'); speak(p, 'Up you come! 👶');
+      }
+      p.intent = null; p.busyTask = null; return;
+    }
     if (it.kind === 'source') {
+      if (p.carryBaby && !babyCarrier) { speak(p, 'Hands full of baby! 🤲'); p.intent = null; p.busyTask = null; return; }
       if (!p.carry) { p.carry = it.item; Sound.play('pickup'); speak(p, `Got the ${it.item}!`); burst(p.x, p.y - p.r * 4, '#ffd34e'); }
       p.intent = null; p.busyTask = null; return;
     }
@@ -198,16 +235,28 @@
     const t = it.task;
     if (!t || t.done) { p.intent = null; p.busyTask = null; return; }
 
-    // validations
-    if (t.requires && p.carry !== t.requires.item) {
-      speak(p, `Need ${t.requires.item}!`); p.intent = null; p.busyTask = null; return;
-    }
     if (t.crawlOnly && t.phase !== 'deliver' && !p.abilities.crawl) {
-      speak(p, "Can't fit! Send a kid 👶"); p.intent = null; p.busyTask = null; return;
+      speak(p, "Can't fit! Send Owen 👦"); p.intent = null; p.busyTask = null; return;
     }
     if (t.deliverTo && t.phase === 'deliver') {
       if (p.carry === t.emoji) finishMilestone(t, p);
       return;
+    }
+
+    // baby-care jobs: the baby must be settled at this station first
+    if (t.needsBaby && !(baby && baby.placedSpot === t.spot)) {
+      if (p.carryBaby) {
+        baby.state = 'placed'; baby.placedSpot = t.spot; baby.carrier = null; p.carryBaby = false;
+        const pos = spotXY(t.spot); baby.x = pos.x; baby.y = pos.y + p.r * 0.3;
+        Sound.play('pickup'); speak(p, 'There you go! 👶');
+      } else {
+        speak(p, 'Bring Elliot here first! 👶'); p.intent = null; p.busyTask = null; return;
+      }
+    }
+
+    // item requirement
+    if (t.requires && p.carry !== t.requires.item) {
+      speak(p, `Now fetch ${t.requires.item}`); p.intent = null; p.busyTask = null; return;
     }
 
     // do the work
@@ -334,9 +383,10 @@
     for (const t of tasks) {
       t.working = false;
     }
-    // players
+    // players + baby
     players.forEach((p, i) => p.update(dt, World, i === active));
     resolveActive(dt);
+    if (baby) baby.update(dt);
     for (const t of tasks) {
       if (!t.working && t.progress > 0 && t.kind !== 'milestone') t.progress = Math.max(0, t.progress - dt * 1.5);
       if (!t.working && t.progress > 0 && t.kind === 'milestone' && t.phase !== 'deliver') t.progress = Math.max(0, t.progress - dt * 1.2);
@@ -354,7 +404,7 @@
     // Owen menace: leave the kid unattended too long and he makes trouble
     const owenIx = players.findIndex(p => p.id === 'owen');
     const owen = owenIx >= 0 ? players[owenIx] : null;
-    if (Level.menace && owen && active !== owenIx && !owen.busyTask && !owen.moving) {
+    if (Level.menace && owen && !owen.isNpc && active !== owenIx && !owen.busyTask && !owen.moving) {
       owenIdle += dt;
       const already = tasks.some(t => t.def && t.def.type === 'mischief');
       if (owenIdle > 13 && !already && tasks.filter(t => t.kind === 'nuisance').length < Level.maxNuisances + 1) {
@@ -429,12 +479,13 @@
     drawRoom();
     drawProps();
 
-    // depth-sorted actors (players) by feet y
-    const actors = [...players].map((p, i) => ({ p, i }));
-    actors.sort((a, b) => a.p.y - b.p.y);
+    // depth-sorted actors (players + baby) by feet y
+    const actors = players.map(p => ({ e: p, y: p.y }));
+    if (baby) actors.push({ e: baby, y: baby.sortY });
+    actors.sort((a, b) => a.y - b.y);
     // tasks drawn after props but bubbles always on top; draw floor markers first
     for (const t of tasks) drawTaskMarker(t);
-    for (const a of actors) a.p.draw(ctx);
+    for (const a of actors) a.e.draw(ctx);
     for (const t of tasks) drawTaskBubble(t);
 
     // particles
@@ -507,6 +558,8 @@
     dresser:  { emoji: '🧺', c: '#d9c4f0', label: 'Dresser' },
     toybox:   { emoji: '🧸', c: '#ffd6a8', label: 'Toy box' },
     crib:     { emoji: '🛏️', c: '#c8d8ff', label: 'Bed' },
+    playmat:  { emoji: '🟦', c: '#bfe0c8', label: 'Play mat' },
+    carrier:  { emoji: '🎒', c: '#ffe39e', label: 'Carrier' },
   };
   function drawProps() {
     const base = Math.min(World.W, World.H) * 0.085;
@@ -535,7 +588,7 @@
 
   function drawTaskMarker(t) {
     // soft glow ring on the floor to say "interact here"
-    if (t.id === 'keys' && t.phase === 'deliver') return;
+    if (t.deliverTo && t.phase === 'deliver') return;
     const pulse = 0.5 + 0.5 * Math.sin(t.bob * 2);
     ctx.save();
     ctx.globalAlpha = 0.20 + pulse * 0.18;
@@ -549,7 +602,9 @@
   function drawTaskBubble(t) {
     let bx = t.x, by = t.y;
     let label = t.emoji;
-    if (t.id === 'keys' && t.phase === 'deliver') { const d = spotXY('door'); bx = d.x; by = d.y; label = '🔑➜🚪'; }
+    if (t.deliverTo && t.phase === 'deliver') { const d = spotXY(t.deliverTo); bx = d.x; by = d.y; label = `${t.emoji}➜🚪`; }
+    // baby-care job still waiting for the baby to be brought over
+    else if (t.needsBaby && !(baby && baby.placedSpot === t.spot)) { label = '👶' + t.emoji; }
     const r = 22 * t.spawnPop;
     by -= (t.kind === 'milestone' ? 52 : 30) + Math.sin(t.bob) * 4;
     // bubble

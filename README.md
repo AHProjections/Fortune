@@ -19,15 +19,30 @@ Or host the folder on any static host (GitHub Pages, Netlify, etc.).
 
 - **Tap a glowing job** to send your character to do it.
 - **Tap a family portrait** (bottom bar) to switch who you control.
-- 🍼 **Feeding** needs a bottle from the fridge first — grab it, then go to the highchair.
-- 🔑 **Lost keys** are under the couch — only **Owen** or baby **Elliot** can crawl under!
-- Finish all **5 morning goals** before 8:00 without letting the **Chaos meter** hit 100%.
+- 👶 **Elliot can't walk** — tap him to carry him. While holding him your hands
+  are full (no items), so jobs become an ordering puzzle: seat him in the
+  highchair first, *then* fetch the bottle.
+- 🎒 A **baby carrier** (found in a later stage) lets you hold Elliot and an item.
+- 🔑 **Lost keys** are under the couch — only **Owen** can crawl under!
+- Finish all the stage's goals before the clock runs out, without letting the
+  **Chaos meter** hit 100%.
 - Desktop bonus: **WASD/arrows** move, **1–4** switch characters, **space** acts.
 
-Each character has a role: Andrew is strong, Kalong is the fast multitasker who
-calms tantrums instantly, Owen and Elliot can crawl into tight spots. The player
-system is built as independent "slots" so same-tablet co-op and online play can
-be added later without a rewrite.
+## The campaign (gentle difficulty ramp)
+
+Stages unlock as you win (saved in the browser); each adds one new idea and
+ramps a little faster:
+
+1. **Slow Start** — one parent (Andrew); Owen is an un-controllable NPC. Move + do jobs.
+2. **Teamwork** — two parents; switch between them.
+3. **Hands Full** — Elliot arrives (carry-only); learn the carry mechanic via diaper changes.
+4. **The Full Routine** — feeding (baby + bottle), keys (Owen crawls), full chaos.
+5. **Bedtime Battle** — the toughest, with a findable baby carrier.
+
+Owen and Elliot are **NPCs** in early stages; Owen becomes controllable once the
+crawl-for-keys job appears. (A future mode could let you *play as the kids* and
+crank up the chaos until the parents give up.) The player system is built as
+independent "slots" so same-tablet co-op and online play can be added later.
 
 ## Project layout
 
