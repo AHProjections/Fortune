@@ -2,7 +2,7 @@ name: Deploy Hughesmania to GitHub Pages
 
 on:
   push:
-    branches: [claude/family-parenting-game-5ayuaq]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
