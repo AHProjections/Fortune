@@ -266,6 +266,29 @@ h2 { font-family: 'Baloo 2', sans-serif; font-size: clamp(26px, 8vw, 40px); marg
 }
 .btn.ghost:active { transform: none; }
 
+/* level select */
+.levelcards { display: flex; flex-direction: column; gap: 12px; margin: 14px 0 18px; }
+.levelcard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+  border-radius: 20px;
+  padding: 16px 18px;
+  color: #4a2e00;
+  background: linear-gradient(135deg, #ffe6a8, #ffc26b);
+  box-shadow: 0 5px 0 #d99020;
+  transition: transform 0.08s, box-shadow 0.08s;
+}
+.levelcard:active { transform: translateY(4px); box-shadow: 0 1px 0 #d99020; }
+.levelcard.night { background: linear-gradient(135deg, #6e5fb0, #44356f); color: #f0ecff; box-shadow: 0 5px 0 #2c2150; }
+.lc-emoji { font-size: 30px; }
+.lc-name { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: clamp(18px, 5.5vw, 24px); }
+.lc-blurb { font-size: 13px; opacity: 0.85; }
+
 /* floating toast (speech) handled on canvas; combo flash via DOM */
 #comboFlash {
   position: absolute;

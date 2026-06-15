@@ -11,6 +11,8 @@
   let director = null;
   let chaos = 0, score = 0, combo = 0, comboT = 0, elapsed = 0, shake = 0;
   let last = 0;
+  let currentLevelId = 'morning';
+  let owenIdle = 0;            // seconds Owen has been left unattended
 
   // combo flash element
   const comboFlash = document.createElement('div');
@@ -75,10 +77,12 @@
   }
 
   // ───────────────── game start ─────────────────
-  function startGame() {
+  function startGame(levelId) {
     Sound.unlock();
+    if (levelId && LEVELS[levelId]) currentLevelId = levelId;
+    Level = LEVELS[currentLevelId];
     state = 'playing';
-    chaos = 0; score = 0; combo = 0; comboT = 0; elapsed = 0; shake = 0;
+    chaos = 0; score = 0; combo = 0; comboT = 0; elapsed = 0; shake = 0; owenIdle = 0;
     particles = []; speeches = [];
     director = new Director(Level);
     active = 1; // start as Kalong (supermom) — friendly opener
@@ -88,9 +92,7 @@
     const cx = World.playRect.x + World.playRect.w / 2;
     const cy = World.playRect.y + World.playRect.h * 0.62;
     players.forEach((p, i) => { p.x = cx + (i - 1.5) * World.playRect.w * 0.13; p.y = cy; });
-    players[2].workMult = 1; // Owen
-    players[1].workMult = 0.8; // Kalong faster at everything
-    Level.chars.forEach((c, i) => { players[i].abilities = c.abilities; players[i].workMult = (c.id === 'kalong') ? 0.78 : 1; });
+    Level.chars.forEach((c, i) => { players[i].abilities = c.abilities; players[i].workMult = c.workMult || 1; });
 
     // build milestone tasks
     tasks = Level.milestones.map(m => {
@@ -124,16 +126,19 @@
     const list = [];
     for (const t of tasks) {
       if (t.done) continue;
-      if (t.kind === 'milestone' && t.id === 'keys' && t.phase === 'deliver') {
-        const d = spotXY('door'); list.push({ task: t, x: d.x, y: d.y, kind: 'task' });
+      if (t.kind === 'milestone' && t.deliverTo && t.phase === 'deliver') {
+        const d = spotXY(t.deliverTo); list.push({ task: t, x: d.x, y: d.y, kind: 'task' });
       } else {
         list.push({ task: t, x: t.x, y: t.y, kind: 'task' });
       }
     }
-    // fridge bottle pickup when feeding still needed and nobody holds a bottle
-    const feed = tasks.find(t => t.id === 'feed' && !t.done);
-    const hasBottle = players.some(p => p.carry === '🍼');
-    if (feed && !hasBottle) { const f = spotXY('fridge'); list.push({ x: f.x, y: f.y, kind: 'fridge' }); }
+    // item pickup: any required-item goal that's pending while nobody carries it
+    for (const t of tasks) {
+      if (t.done || !t.requires) continue;
+      if (players.some(p => p.carry === t.requires.item)) continue;
+      const f = spotXY(t.requires.from);
+      list.push({ x: f.x, y: f.y, kind: 'source', item: t.requires.item });
+    }
     return list;
   }
 
@@ -162,18 +167,18 @@
     const p = players[active];
     if (!p.intent) { p.busyTask = null; return; }
     const it = p.intent;
-    // keys deliver target follows the door
+    // a deliver-phase goal's target follows its drop-off spot
     let tx = it.x, ty = it.y;
-    if (it.kind === 'task' && it.task.id === 'keys' && it.task.phase === 'deliver') {
-      const d = spotXY('door'); tx = d.x; ty = d.y; p.tx = tx; p.ty = ty;
+    if (it.kind === 'task' && it.task.deliverTo && it.task.phase === 'deliver') {
+      const d = spotXY(it.task.deliverTo); tx = d.x; ty = d.y; p.tx = tx; p.ty = ty;
     }
     const reach = p.r + Math.min(30, World.playRect.w * 0.05);
     const dist = Math.hypot(p.x - tx, p.y - ty);
     if (dist > reach) { p.busyTask = null; return; }
 
     p.stop();
-    if (it.kind === 'fridge') {
-      if (!p.carry) { p.carry = '🍼'; Sound.play('pickup'); speak(p, 'Got the bottle!'); burst(p.x, p.y - p.r * 4, '#ffd34e'); }
+    if (it.kind === 'source') {
+      if (!p.carry) { p.carry = it.item; Sound.play('pickup'); speak(p, `Got the ${it.item}!`); burst(p.x, p.y - p.r * 4, '#ffd34e'); }
       p.intent = null; p.busyTask = null; return;
     }
 
@@ -185,10 +190,10 @@
       speak(p, `Need ${t.requires.item}!`); p.intent = null; p.busyTask = null; return;
     }
     if (t.crawlOnly && t.phase !== 'deliver' && !p.abilities.crawl) {
-      speak(p, "Can't fit! Send Owen 👶"); p.intent = null; p.busyTask = null; return;
+      speak(p, "Can't fit! Send a kid 👶"); p.intent = null; p.busyTask = null; return;
     }
-    if (t.id === 'keys' && t.phase === 'deliver') {
-      if (p.carry === '🔑') finishMilestone(t, p);
+    if (t.deliverTo && t.phase === 'deliver') {
+      if (p.carry === t.emoji) finishMilestone(t, p);
       return;
     }
 
@@ -201,12 +206,12 @@
     Sound.play('progress');
     if (t.progress >= threshold) {
       if (t.kind === 'milestone') {
-        if (t.id === 'feed') p.carry = null;
-        if (t.id === 'keys' && t.phase !== 'deliver') {
-          t.phase = 'deliver'; p.carry = '🔑';
-          Sound.play('success'); speak(p, 'Found them! 🔑'); bumpCombo(80);
+        // a "fetch then deliver" goal: first completion picks up the item
+        if (t.deliverTo && t.phase !== 'deliver') {
+          t.phase = 'deliver'; p.carry = t.emoji;
+          Sound.play('success'); speak(p, 'Got it! ' + t.emoji); bumpCombo(80);
           burst(p.x, p.y - p.r * 4, '#ffd34e');
-          p.intent.task = t; const d = spotXY('door'); p.intent.x = d.x; p.intent.y = d.y;
+          p.intent.task = t; const d = spotXY(t.deliverTo); p.intent.x = d.x; p.intent.y = d.y;
           p.busyTask = null; t.working = false; t.progress = 0; return;
         }
         finishMilestone(t, p);
@@ -218,8 +223,8 @@
 
   function finishMilestone(t, p) {
     t.done = true; t.working = false; p.busyTask = null; p.intent = null;
-    if (t.id === 'feed') p.carry = null;
-    if (t.id === 'keys') p.carry = null;
+    if (t.requires && p.carry === t.requires.item) p.carry = null;
+    if (t.deliverTo && p.carry === t.emoji) p.carry = null;
     markChip(t.id);
     chaos = Math.max(0, chaos + Level.chaosOnComplete);
     Sound.play('milestone');
@@ -277,7 +282,7 @@
     document.getElementById('loseSub').textContent = reason;
     const done = Level.milestones.filter(m => tasks.find(x => x.id === m.id).done).length;
     document.getElementById('loseStats').innerHTML =
-      `<div>⭐ Score ${score}</div><div>✅ Goals done: ${done}/5</div>`;
+      `<div>⭐ Score ${score}</div><div>✅ Goals done: ${done}/${Level.milestones.length}</div>`;
     hud.classList.add('hidden');
     showScreen('lose');
   }
@@ -313,6 +318,24 @@
       speak({ x: t.x, y: t.y - 30, r: 18 }, t.label + '!', true);
       shake = Math.max(shake, 4);
     });
+
+    // Owen menace: leave the kid unattended too long and he makes trouble
+    const owen = players[2];
+    if (owen && active !== 2 && !owen.busyTask && !owen.moving) {
+      owenIdle += dt;
+      const already = tasks.some(t => t.def && t.def.type === 'mischief');
+      if (owenIdle > 11 && !already && tasks.filter(t => t.kind === 'nuisance').length < Level.maxNuisances + 1) {
+        const def = OWEN_MISCHIEF[Math.floor(Math.random() * OWEN_MISCHIEF.length)];
+        const mt = new Task('nuisance', def, clampX(owen.x), clampY(owen.y - 4));
+        tasks.push(mt);
+        Sound.play('select'); shake = Math.max(shake, 6);
+        speak(owen, pick(["hehehe", "oops", "ART!"]));
+        speak({ x: mt.x, y: mt.y - 30, r: 18 }, def.label + '!', true);
+        owenIdle = 0;
+      }
+    } else {
+      owenIdle = 0;
+    }
 
     // task timers + expiry
     for (const t of [...tasks]) {
@@ -353,7 +376,8 @@
   function updateHUD() {
     document.getElementById('score').textContent = score;
     const min = Level.clockStart + (elapsed / Level.duration) * (Level.clockEnd - Level.clockStart);
-    const hh = Math.floor(min / 60), mm = Math.floor(min % 60);
+    let hh = Math.floor(min / 60); const mm = Math.floor(min % 60);
+    if (hh > 12) hh -= 12;
     document.getElementById('clock').textContent = `${hh}:${mm.toString().padStart(2, '0')}`;
     const fill = document.getElementById('chaosFill');
     const face = document.getElementById('chaosFace');
@@ -397,36 +421,45 @@
 
   function drawRoom() {
     const { W, H } = World, p = World.playRect;
+    const th = Level.theme;
     const floorY = p.y + p.h * 0.30;
     // wall
     let g = ctx.createLinearGradient(0, 0, 0, floorY);
-    g.addColorStop(0, '#b9a7e6'); g.addColorStop(1, '#d9c9f5');
+    g.addColorStop(0, th.wallTop); g.addColorStop(1, th.wallBot);
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, floorY);
     // floor
     g = ctx.createLinearGradient(0, floorY, 0, H);
-    g.addColorStop(0, '#e7b277'); g.addColorStop(1, '#c98c4f');
+    g.addColorStop(0, th.floorTop); g.addColorStop(1, th.floorBot);
     ctx.fillStyle = g; ctx.fillRect(0, floorY, W, H - floorY);
     // floorboards
-    ctx.strokeStyle = 'rgba(120,75,35,0.25)'; ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(0,0,0,0.14)'; ctx.lineWidth = 2;
     for (let i = 1; i < 7; i++) {
       const y = floorY + (H - floorY) * i / 7;
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
-    // window with sun
+    // window — sunny by day, starry/moon by night
     const wx = W * 0.5, wy = floorY * 0.42, ww = Math.min(150, W * 0.34), wh = ww * 0.7;
     roundRect(wx - ww / 2, wy - wh / 2, ww, wh, 12);
-    ctx.fillStyle = '#bfe9ff'; ctx.fill();
-    ctx.fillStyle = '#ffe07a'; ctx.beginPath(); ctx.arc(wx + ww * 0.22, wy - wh * 0.12, ww * 0.13, 0, 7); ctx.fill();
+    ctx.fillStyle = th.sky; ctx.fill();
+    if (th.sun) {
+      ctx.fillStyle = '#ffe07a'; ctx.beginPath(); ctx.arc(wx + ww * 0.22, wy - wh * 0.12, ww * 0.13, 0, 7); ctx.fill();
+    } else {
+      ctx.fillStyle = '#f4f1c9'; ctx.beginPath(); ctx.arc(wx + ww * 0.24, wy - wh * 0.1, ww * 0.12, 0, 7); ctx.fill();
+      ctx.fillStyle = th.sky; ctx.beginPath(); ctx.arc(wx + ww * 0.30, wy - wh * 0.16, ww * 0.1, 0, 7); ctx.fill();
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 6; i++) ctx.fillRect(wx - ww * 0.35 + (i * 53) % ww, wy - wh * 0.3 + (i * 31) % wh, 2, 2);
+    }
     ctx.strokeStyle = '#fff'; ctx.lineWidth = 5; roundRect(wx - ww / 2, wy - wh / 2, ww, wh, 12); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(wx, wy - wh / 2); ctx.lineTo(wx, wy + wh / 2);
     ctx.moveTo(wx - ww / 2, wy); ctx.lineTo(wx + ww / 2, wy); ctx.stroke();
     // rug
-    ctx.fillStyle = 'rgba(123,83,214,0.18)';
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
     ctx.beginPath();
     ctx.ellipse(p.x + p.w * 0.5, p.y + p.h * 0.78, p.w * 0.34, p.h * 0.16, 0, 0, 7);
     ctx.fill();
   }
 
+  // Icons for every spot used by any level.
   const PROPS = {
     stove:    { emoji: '🍳', c: '#cfd4dc', label: 'Stove' },
     fridge:   { emoji: '🧊', c: '#dff1ff', label: 'Fridge' },
@@ -435,6 +468,12 @@
     closet:   { emoji: '👕', c: '#cdeccf', label: 'Closet' },
     couch:    { emoji: '🛋️', c: '#caa6f0', label: 'Couch' },
     door:     { emoji: '🚪', c: '#e6c79a', label: 'Door' },
+    bath:     { emoji: '🛁', c: '#bfe6ff', label: 'Bath' },
+    sink:     { emoji: '🚰', c: '#d7eefc', label: 'Sink' },
+    chair:    { emoji: '🪑', c: '#e6d3b3', label: 'Story chair' },
+    dresser:  { emoji: '🧺', c: '#d9c4f0', label: 'Dresser' },
+    toybox:   { emoji: '🧸', c: '#ffd6a8', label: 'Toy box' },
+    crib:     { emoji: '🛏️', c: '#c8d8ff', label: 'Bed' },
   };
   function drawProps() {
     const base = Math.min(World.W, World.H) * 0.085;
@@ -556,12 +595,15 @@
     if (name) document.getElementById('screen-' + name).classList.remove('hidden');
     overlay.style.pointerEvents = name ? 'auto' : 'none';
   }
+  function gotoLevels() { state = 'levels'; hud.classList.add('hidden'); showScreen('levels'); }
   overlay.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     Sound.unlock();
     const a = btn.dataset.action;
-    if (a === 'play') startGame();
+    if (a === 'levels') gotoLevels();
+    else if (a === 'level') startGame(btn.dataset.level);
+    else if (a === 'again') startGame(currentLevelId);
     else if (a === 'howto') showScreen('howto');
     else if (a === 'back') showScreen('title');
     else if (a === 'title') { state = 'title'; hud.classList.add('hidden'); showScreen('title'); }
