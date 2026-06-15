@@ -146,7 +146,7 @@
 
   function switchTo(i) {
     if (state !== 'playing' || i === active || i < 0 || i >= nPlayable) return;
-    if (players[i].carriedBy || players[i].refusing) { speak(players[i], "I don't want to! 😤"); return; }
+    if (players[i].carriedBy || players[i].refusing || players[i].placedSpot) { speak(players[i], "I don't want to! 😤"); return; }
     // NOTE: we do NOT stop the previous parent — they keep doing their job.
     active = i;
     Sound.play('select');
@@ -184,9 +184,10 @@
     if (baby && baby.state !== 'carried') list.push({ kind: 'baby', x: baby.x, y: baby.y });
     // pick up the baby carrier
     if (Level.carrier && !babyCarrier) { const c = spotXY('carrier'); list.push({ kind: 'carrier', x: c.x, y: c.y }); }
-    // pick up a refusing Owen
+    // pick up Owen — when he's refusing, or when a station still needs him
     const owen = players.find(pl => pl.id === 'owen');
-    if (owen && owen.refusing && !owen.carriedBy) list.push({ kind: 'kid', kid: owen, x: owen.x, y: owen.y });
+    const owenNeeded = tasks.some(t => !t.done && t.needsChild === 'owen');
+    if (owen && !owen.carriedBy && (owen.refusing || owenNeeded)) list.push({ kind: 'kid', kid: owen, x: owen.x, y: owen.y });
     return list;
   }
 
@@ -195,6 +196,17 @@
     Sound.unlock();
     const p = players[active];
     const targets = actionableTargets();
+    // Tapping a kid: carry him — UNLESS your hands already hold his clothes, in
+    // which case fall through and dress him (the clothes job sits on the kid too).
+    const kidT = targets.find(t => t.kind === 'kid');
+    if (kidT) {
+      const dk = Math.hypot(kidT.x - x, kidT.y - y);
+      const dressJob = tasks.find(t => !t.done && t.onChild === kidT.kid.id && t.requires);
+      const holdingClothes = dressJob && p.carry === dressJob.requires.item;
+      if (dk < Math.max(72, World.playRect.w * 0.14) && !holdingClothes) {
+        p.intent = kidT; p.goTo(kidT.x, kidT.y); return;
+      }
+    }
     let best = null, bestD = Infinity;
     for (const t of targets) {
       const d = Math.hypot(t.x - x, t.y - y);
@@ -223,6 +235,8 @@
       const d = spotXY(it.task.deliverTo); tx = d.x; ty = d.y;
     } else if (it.kind === 'task' && it.task.follow) {
       tx = it.task.follow.x; ty = it.task.follow.y;
+    } else if (it.kind === 'kid' && it.kid) {
+      tx = it.kid.x; ty = it.kid.y;   // chase a wandering Owen to pick him up
     }
     p.tx = tx; p.ty = ty;
     const reach = p.r + Math.min(30, World.playRect.w * 0.05);
@@ -242,9 +256,11 @@
       const kid = it.kid;
       if (!kid.carriedBy) {
         if (p.carry || p.carryBaby || p.carryKid) { speak(p, 'Hands full! 🤲'); p.intent = null; p.busyTask = null; return; }
-        p.carryKid = kid; kid.carriedBy = p; kid.refusing = false; kid.stop(); kid.busyTask = null;
-        p.kidHold = 2.0; // carry a moment, then he's calm and gets set down
-        Sound.play('kidup'); speak(p, 'Come on, up we go! 🧒');
+        const wasRefusing = kid.refusing;
+        p.carryKid = kid; kid.carriedBy = p; kid.refusing = false; kid.placedSpot = null; kid.frozen = false; kid.stop(); kid.busyTask = null;
+        // only auto-set-down after a calming carry; when escorting, carry until placed
+        p.kidHold = wasRefusing ? 2.0 : null;
+        Sound.play('kidup'); Sound.voice('owen', 'say'); speak(p, wasRefusing ? 'Come on, up we go! 🧒' : 'Up we go, buddy! 🧒');
       }
       p.intent = null; p.busyTask = null; return;
     }
@@ -273,14 +289,22 @@
       return;
     }
 
-    // baby-care jobs: the baby must be settled at this station first
-    if (t.needsChild === 'baby' && !(baby && baby.placedSpot === t.spot)) {
-      if (p.carryBaby) {
-        baby.state = 'placed'; baby.placedSpot = t.spot; baby.carrier = null; p.carryBaby = false;
-        const pos = spotXY(t.spot); baby.x = pos.x; baby.y = pos.y + p.r * 0.3;
-        Sound.play('babyup'); speak(p, 'There you go! 👶');
-      } else {
-        speak(p, 'Bring Elliot here first! 👶'); p.intent = null; p.busyTask = null; return;
+    // child-care jobs: the kid must be brought to this station first
+    if (t.needsChild) {
+      const ch = childById(t.needsChild);
+      if (!(ch && ch.placedSpot === t.spot)) {
+        if (t.needsChild === 'baby' && p.carryBaby) {
+          baby.state = 'placed'; baby.placedSpot = t.spot; baby.carrier = null; p.carryBaby = false;
+          const pos = spotXY(t.spot); baby.x = pos.x; baby.y = pos.y + p.r * 0.3;
+          Sound.play('babyup'); speak(p, 'There you go! 👶');
+        } else if (t.needsChild !== 'baby' && p.carryKid === ch) {
+          ch.placedSpot = t.spot; ch.carriedBy = null; p.carryKid = null; ch.refusing = false;
+          const pos = spotXY(t.spot); ch.x = pos.x; ch.y = pos.y;
+          Sound.play('kidup'); speak(p, 'Stay right here, buddy. 🧒');
+        } else {
+          const nm = t.needsChild === 'baby' ? 'Elliot 👶' : 'Owen 🧒';
+          speak(p, `Bring ${nm} here first!`); p.intent = null; p.busyTask = null; return;
+        }
       }
     }
 
@@ -314,7 +338,7 @@
 
   function dropKid(p) {
     const kid = p.carryKid; if (!kid) return;
-    kid.carriedBy = null; kid.x = clampX(p.x + p.facing * p.r * 1.5); kid.y = clampY(p.y);
+    kid.carriedBy = null; kid.placedSpot = null; kid.x = clampX(p.x + p.facing * p.r * 1.5); kid.y = clampY(p.y);
     kid.refusing = false; kid.refuseTimer = 14 + Math.random() * 12;
     p.carryKid = null; Sound.play('drop'); speak(kid, 'Okay okay 😣');
   }
@@ -438,14 +462,14 @@
     // a carried child calms after a moment and gets set down (no fiddly drop needed)
     for (let i = 0; i < nPlayable; i++) {
       const pp = players[i];
-      if (pp.carryKid) { pp.kidHold -= dt; if (pp.kidHold <= 0) dropKid(pp); }
+      if (pp.carryKid && pp.kidHold != null) { pp.kidHold -= dt; if (pp.kidHold <= 0) dropKid(pp); }
     }
     if (baby) baby.update(dt);
 
     // Owen "won't walk" tantrum (harder stages): he plants down and must be carried
     if (Level.owenRefuses) {
       const ow = players.find(pl => pl.id === 'owen');
-      if (ow && !ow.carriedBy) {
+      if (ow && !ow.carriedBy && !ow.placedSpot) {
         if (!ow.refusing) {
           if (ow.refuseTimer == null) ow.refuseTimer = 16 + Math.random() * 12;
           ow.refuseTimer -= dt;
@@ -469,9 +493,11 @@
     // director spawns nuisances
     const nui = tasks.filter(t => t.kind === 'nuisance').length;
     director.update(dt, elapsed, nui, World, (t) => {
-      // crying rides the baby; tantrums/whining ride Owen — not empty floor
+      const ow = players.find(pl => pl.id === 'owen');
+      // crying rides the baby; tantrums ride Owen; plain messes are dropped where Owen is
       if (t.def.on === 'baby' && baby) t.follow = baby;
-      else if (t.def.on === 'owen') { const ow = players.find(pl => pl.id === 'owen'); if (ow) t.follow = ow; }
+      else if (t.def.on === 'owen' && ow) t.follow = ow;
+      else if (ow) { t.x = clampX(ow.x); t.y = clampY(ow.y); if (!ow.carriedBy && !ow.placedSpot) speak(ow, pick(['oops 🙊', 'uh oh', 'not me!'])); }
       if (t.follow) { t.x = t.follow.x; t.y = t.follow.y; }
       tasks.push(t);
       Sound.play(t.def.type === 'cry' ? 'cry' : 'select');
@@ -703,7 +729,7 @@
     let label = t.emoji;
     if (t.deliverTo && t.phase === 'deliver') { const d = spotXY(t.deliverTo); bx = d.x; by = d.y; label = `${t.emoji}➜🚪`; }
     // baby-care job still waiting for the baby to be brought over
-    else if (t.needsChild === 'baby' && !(baby && baby.placedSpot === t.spot)) { label = '👶' + t.emoji; }
+    else if (t.needsChild) { const ch = childById(t.needsChild); if (!(ch && ch.placedSpot === t.spot)) label = (t.needsChild === 'baby' ? '👶' : '🧒') + t.emoji; }
     const r = 22 * t.spawnPop;
     by -= (t.kind === 'milestone' ? 52 : 30) + Math.sin(t.bob) * 4;
     // bubble
@@ -913,7 +939,7 @@
   window.__hm = () => ({
     state, active, chaos: Math.round(chaos), babyCarrier,
     players: players.map(p => ({ id: p.id, x: Math.round(p.x), y: Math.round(p.y), npc: p.isNpc,
-      refusing: p.refusing, carriedBy: !!p.carriedBy, carryKid: !!p.carryKid, kidHold: +(p.kidHold || 0).toFixed(2), carryBaby: p.carryBaby, carry: p.carry })),
+      refusing: p.refusing, carriedBy: !!p.carriedBy, carryKid: !!p.carryKid, placed: p.placedSpot, carryBaby: p.carryBaby, carry: p.carry })),
     baby: baby ? { x: Math.round(baby.x), y: Math.round(baby.y), st: baby.state, placed: baby.placedSpot } : null,
     tasks: tasks.map(t => ({ k: t.id || t.def.type, x: Math.round(t.x), y: Math.round(t.y), follow: !!t.follow, prog: +t.progress.toFixed(2), done: t.done })),
   });
@@ -922,8 +948,10 @@
     const def = Level.nuisances.find(d => d.type === type); if (!def) return;
     const pct = World.playRect;
     const t = new Task('nuisance', def, pct.x + pct.w / 2, pct.y + pct.h / 2);
+    const ow = players.find(p => p.id === 'owen');
     if (def.on === 'baby' && baby) t.follow = baby;
-    else if (def.on === 'owen') { const ow = players.find(p => p.id === 'owen'); if (ow) t.follow = ow; }
+    else if (def.on === 'owen' && ow) t.follow = ow;
+    else if (ow) { t.x = clampX(ow.x); t.y = clampY(ow.y); }
     if (t.follow) { t.x = t.follow.x; t.y = t.follow.y; }
     tasks.push(t);
   };

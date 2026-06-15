@@ -142,8 +142,8 @@ const LEVELS = {
   // ── Stage 5 — Bedtime Battle: hardest, plus the baby-carrier to find ──
   bedtime: {
     id: 'bedtime', name: 'Bedtime Battle', icon: '🌙',
-    blurb: 'Everyone in bed by 8:30. Find the carrier to free your hands!',
-    playable: ['andrew', 'kalong', 'owen'], npcs: [], baby: true, carrier: true,
+    blurb: 'Walk both kids through the whole routine and into bed by 8:30.',
+    playable: ['andrew', 'kalong'], npcs: ['owen'], baby: true, carrier: true,
     babyStart: 'playmat',
     theme: NIGHT,
     spots: {
@@ -153,10 +153,10 @@ const LEVELS = {
       carrier:{ nx: 0.50, ny: 0.30 }, playmat: { nx: 0.30, ny: 0.70 },
     },
     milestones: [
-      { id: 'bath',    label: 'Bath time',    emoji: '🛁', spot: 'bath',    duration: 2.8 },
-      { id: 'teeth',   label: 'Brush teeth',  emoji: '🪥', spot: 'sink',    duration: 2.2 },
+      { id: 'bath',    label: 'Bath time',    emoji: '🛁', spot: 'bath',    duration: 2.6, needsChild: 'owen' },
+      { id: 'teeth',   label: 'Brush teeth',  emoji: '🪥', spot: 'sink',    duration: 2.2, needsChild: 'owen' },
       { id: 'pajamas', label: 'Pajamas on',   emoji: '🧦', spot: 'dresser', duration: 2.2, onChild: 'owen', requires: { item: '🧦', from: 'dresser' } },
-      { id: 'story',   label: 'Read a story', emoji: '📖', spot: 'chair',   duration: 2.8 },
+      { id: 'story',   label: 'Read a story', emoji: '📖', spot: 'chair',   duration: 2.6, needsChild: 'owen' },
       { id: 'tuckin',  label: 'Tuck in',      emoji: '😴', spot: 'crib',    duration: 2.4, needsChild: 'baby', requires: { item: '🧸', from: 'toybox' } },
     ],
     nuisances: [
@@ -165,13 +165,13 @@ const LEVELS = {
       { type: 'monster',label: 'Monster check!', emoji: '👻', duration: 1.5, expire: 9,  chaos: 14, score: 110, on: 'baby' },
       { type: 'oneshow',label: 'One more show!', emoji: '📺', duration: 1.4, expire: 11, chaos: 12, score: 100, on: 'owen' },
     ],
-    duration: 175, clockStart: 19 * 60, clockEnd: 20 * 60 + 30,
-    firstNuisance: 6, nuisanceMin: 2.8, nuisanceMax: 6.2, maxNuisances: 5,
-    ambientPerNuisance: 1.5, ambientPerMilestone: 0.52, chaosOnComplete: -6, comboWindow: 4.0,
+    duration: 185, clockStart: 19 * 60, clockEnd: 20 * 60 + 30,
+    firstNuisance: 10, nuisanceMin: 3.6, nuisanceMax: 7.2, maxNuisances: 4,
+    ambientPerNuisance: 1.2, ambientPerMilestone: 0.4, chaosOnComplete: -7, comboWindow: 4.5,
     menace: true, owenRefuses: true,
     tips: [
-      { at: 0.6, text: '🎒 Grab the baby carrier (top of the room) so you can hold Elliot AND a teddy at once!' },
-      { at: 9.0, text: '🧸 Tuck-in needs Elliot in the crib with a teddy from the toy box.' },
+      { at: 0.6, text: '🧒 Tap Owen to carry him, then drop him at each station — bath, teeth, story all need him there!' },
+      { at: 8.0, text: '🎒 Grab the carrier (top of room) to hold Elliot AND a teddy. 🧸 Tuck-in needs Elliot + teddy in the crib.' },
     ],
   },
 };

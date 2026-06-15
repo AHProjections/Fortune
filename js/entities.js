@@ -21,6 +21,7 @@ class Player {
     this.refuseTimer = null;
     this.refuseWhine = 0;
     this.frozen = false;              // held still while being dressed
+    this.placedSpot = null;           // set down at a station (kid being escorted)
     this.isNpc = false;               // wandering, not controllable
     this.npcTimer = Math.random() * 2;
   }
@@ -61,6 +62,14 @@ class Player {
       this.y = c.y + 1;
       this.moving = false; this.tx = this.ty = null;
       this.setAnim('happy');
+      this.frameT += dt; if (this.frameT >= 0.4) { this.frameT = 0; this.frame++; }
+      return;
+    }
+    // Set down at a station (being escorted through the routine): stay put.
+    if (this.placedSpot) {
+      this.tx = this.ty = null; this.moving = false; this.busyTask = null;
+      this.setAnim('happy');
+      this.bob += dt * 3;
       this.frameT += dt; if (this.frameT >= 0.4) { this.frameT = 0; this.frame++; }
       return;
     }

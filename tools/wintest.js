@@ -10,8 +10,9 @@ const PLANS = {
        ['tap','playmat',3200],['tap','changing',4600],
        ['tap','changing',3200],['tap','highchair',3600],['tap','fridge',3400],['tap','highchair',4600],
        ['switch',3,400],['tap','couch',4600],['tap','door',4400]],
-  bedtime: [['tap','bath',4600],['tap','sink',4200],['tap','dresser',2600],['owen',4800],['tap','chair',4600],
-            ['tap','carrier',3200],['tap','toybox',3200],['tap','playmat',3200],['tap','crib',4600]],
+  bedtime: [['owen',3200],['tap','bath',4800],['owen',3200],['tap','sink',4400],['owen',3200],['tap','chair',4600],
+            ['tap','dresser',2600],['owen',4800],
+            ['tap','carrier',3000],['tap','toybox',3200],['tap','playmat',3200],['tap','crib',4600]],
 };
 
 async function dismissCutscene(p){
