@@ -285,9 +285,33 @@ h2 { font-family: 'Baloo 2', sans-serif; font-size: clamp(26px, 8vw, 40px); marg
 }
 .levelcard:active { transform: translateY(4px); box-shadow: 0 1px 0 #d99020; }
 .levelcard.night { background: linear-gradient(135deg, #6e5fb0, #44356f); color: #f0ecff; box-shadow: 0 5px 0 #2c2150; }
+.levelcard.locked { background: #d8cfe4; color: #7a6e90; box-shadow: 0 5px 0 #b3a7c4; cursor: not-allowed; opacity: 0.85; }
+.levelcard.locked .lc-name, .levelcard.locked .lc-blurb { color: #7a6e90; }
+.levelcard.locked:active { transform: none; box-shadow: 0 5px 0 #b3a7c4; }
 .lc-emoji { font-size: 30px; }
 .lc-name { font-family: 'Baloo 2', sans-serif; font-weight: 800; font-size: clamp(18px, 5.5vw, 24px); }
 .lc-blurb { font-size: 13px; opacity: 0.85; }
+.bigstats .unlocked { color: var(--leaf); margin-top: 6px; }
+
+/* coaching tip banner */
+#tipbar {
+  align-self: center;
+  max-width: min(90%, 460px);
+  margin: 0 auto;
+  background: rgba(44,33,64,0.92);
+  color: #fff4e0;
+  font-weight: 600;
+  font-size: clamp(13px, 3.8vw, 16px);
+  padding: 9px 16px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.25);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s, transform 0.3s;
+}
+#tipbar.show { opacity: 1; transform: translateY(0); }
 
 /* floating toast (speech) handled on canvas; combo flash via DOM */
 #comboFlash {

@@ -28,6 +28,7 @@
       </div>
       <div id="checklist"></div>
     </div>
+    <div id="tipbar"></div>
     <div id="charbar"></div>
   </div>
 
@@ -42,19 +43,9 @@
     </section>
 
     <section id="screen-levels" class="screen hidden">
-      <h2>Pick a level</h2>
-      <div class="levelcards">
-        <button class="levelcard" data-action="level" data-level="morning">
-          <span class="lc-emoji">🍳🔑</span>
-          <span class="lc-name">The Morning Routine</span>
-          <span class="lc-blurb">Out the door by 8:00.</span>
-        </button>
-        <button class="levelcard night" data-action="level" data-level="bedtime">
-          <span class="lc-emoji">🛁😴</span>
-          <span class="lc-name">Bedtime Battle</span>
-          <span class="lc-blurb">Into bed by 8:30. Good luck.</span>
-        </button>
-      </div>
+      <h2>Pick a stage</h2>
+      <p class="tag" style="margin:0 0 12px">New stages unlock as you win.</p>
+      <div class="levelcards" id="levelcards"></div>
       <button class="btn ghost" data-action="title">Back</button>
     </section>
 
@@ -65,7 +56,8 @@
         <li><b>Tap a family portrait</b> (bottom) to switch who you control.</li>
         <li>🍼 <b>Feeding</b> needs a bottle from the fridge first — grab it, then go to the highchair.</li>
         <li>🔑 <b>Lost keys</b> are under the couch — only <b>Owen</b> or <b>baby Elliot</b> can crawl under!</li>
-        <li>Finish all <b>5 morning goals</b> before 8:00… and don't let the <b>Chaos meter</b> explode. 💥</li>
+        <li>Finish <b>all the goals</b> (top of screen) before the clock runs out… and don't let the <b>Chaos meter</b> explode. 💥</li>
+        <li>New here? Start with <b>Stage 1</b> — it's just Dad and Owen. Stages unlock as you win.</li>
       </ul>
       <p class="kbd-note">On a computer: WASD/arrows to move, <b>1–4</b> to switch, <b>space</b> to act.</p>
       <button class="btn big" data-action="levels">Let's go!</button>
@@ -73,12 +65,12 @@
     </section>
 
     <section id="screen-win" class="screen hidden">
-      <h2 class="win-title">OUT THE DOOR! 🚪🎉</h2>
+      <h2 class="win-title" id="winTitle">NICE WORK! 🎉</h2>
       <p id="winSub" class="tag"></p>
       <div id="winStats" class="bigstats"></div>
-      <button class="btn big" data-action="again">Play again</button>
-      <button class="btn ghost" data-action="levels">Pick another level</button>
-      <button class="btn ghost" data-action="title">Main menu</button>
+      <button class="btn big" id="nextBtn" data-action="next">Next level ▶</button>
+      <button class="btn ghost" data-action="again">Replay this stage</button>
+      <button class="btn ghost" data-action="levels">All stages</button>
     </section>
 
     <section id="screen-lose" class="screen hidden">
@@ -86,7 +78,7 @@
       <p id="loseSub" class="tag"></p>
       <div id="loseStats" class="bigstats"></div>
       <button class="btn big" data-action="again">Try again</button>
-      <button class="btn ghost" data-action="levels">Pick another level</button>
+      <button class="btn ghost" data-action="levels">All stages</button>
       <button class="btn ghost" data-action="title">Main menu</button>
     </section>
   </div>

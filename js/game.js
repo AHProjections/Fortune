@@ -11,8 +11,19 @@
   let director = null;
   let chaos = 0, score = 0, combo = 0, comboT = 0, elapsed = 0, shake = 0;
   let last = 0;
-  let currentLevelId = 'morning';
+  let currentLevelId = CAMPAIGN[0];
   let owenIdle = 0;            // seconds Owen has been left unattended
+  let tipIdx = 0;             // next coaching tip to show
+
+  // ── progression: how many campaign stages are unlocked (saved in browser) ──
+  function getUnlocked() {
+    const n = parseInt(localStorage.getItem('hughesmania_unlocked'), 10);
+    return Math.max(1, Math.min(CAMPAIGN.length, n || 1));
+  }
+  function setUnlocked(n) {
+    localStorage.setItem('hughesmania_unlocked', String(Math.max(getUnlocked(), n)));
+  }
+  function castConfigs() { return Level.cast.map(id => ROSTER.find(c => c.id === id)); }
 
   // combo flash element
   const comboFlash = document.createElement('div');
@@ -46,7 +57,7 @@
   function buildCharBar() {
     const bar = document.getElementById('charbar');
     bar.innerHTML = '';
-    Level.chars.forEach((c, i) => {
+    castConfigs().forEach((c, i) => {
       const d = document.createElement('div');
       d.className = 'portrait' + (i === active ? ' active' : '');
       d.innerHTML = `<img src="assets/game/${c.id}/idle_0.png" alt="${c.name}"><div class="pname">${c.name}</div>`;
@@ -82,17 +93,19 @@
     if (levelId && LEVELS[levelId]) currentLevelId = levelId;
     Level = LEVELS[currentLevelId];
     state = 'playing';
-    chaos = 0; score = 0; combo = 0; comboT = 0; elapsed = 0; shake = 0; owenIdle = 0;
+    chaos = 0; score = 0; combo = 0; comboT = 0; elapsed = 0; shake = 0; owenIdle = 0; tipIdx = 0;
     particles = []; speeches = [];
     director = new Director(Level);
-    active = 1; // start as Kalong (supermom) — friendly opener
+    active = 0; // start as the first family member in the cast
 
-    players = Level.chars.map(c => new Player(c));
+    const cast = castConfigs();
+    players = cast.map(c => new Player(c));
     players.forEach(p => p.layout(World.playRect));
     const cx = World.playRect.x + World.playRect.w / 2;
     const cy = World.playRect.y + World.playRect.h * 0.62;
-    players.forEach((p, i) => { p.x = cx + (i - 1.5) * World.playRect.w * 0.13; p.y = cy; });
-    Level.chars.forEach((c, i) => { players[i].abilities = c.abilities; players[i].workMult = c.workMult || 1; });
+    const n = players.length;
+    players.forEach((p, i) => { p.x = cx + (i - (n - 1) / 2) * World.playRect.w * 0.15; p.y = cy; });
+    cast.forEach((c, i) => { players[i].abilities = c.abilities; players[i].workMult = c.workMult || 1; });
 
     // build milestone tasks
     tasks = Level.milestones.map(m => {
@@ -263,20 +276,33 @@
   function win() {
     if (state !== 'playing') return;
     state = 'win';
+    hideTip();
     Sound.stopMusic(); Sound.play('win');
     players.forEach(p => { p.victoryHold = true; p.stop(); p.busyTask = null; });
     confetti(World.W / 2, World.H * 0.4); confetti(World.W * 0.3, World.H * 0.5); confetti(World.W * 0.7, World.H * 0.5);
-    const mins = Math.max(0, Level.duration - elapsed);
+
+    // unlock the next stage
+    const idx = CAMPAIGN.indexOf(currentLevelId);
+    if (idx >= 0) setUnlocked(idx + 2);
+    const nx = nextLevelId();
+    const justUnlocked = nx && (CAMPAIGN.indexOf(nx) === idx + 1);
+
+    document.getElementById('winTitle').textContent = Level.theme.sun ? 'NICE WORK! 🎉' : 'SWEET DREAMS 🌙';
     document.getElementById('winSub').textContent =
-      `The Hughes family made it out the door with ${Math.ceil(mins)}s to spare!`;
+      `“${Level.name}” complete — finished with ${Math.ceil(Math.max(0, Level.duration - elapsed))}s on the clock!`;
     document.getElementById('winStats').innerHTML =
-      `<div>⭐ Score ${score}</div><div>🔥 Chaos survived: ${Math.round(chaos)}%</div>`;
+      `<div>⭐ Score ${score}</div><div>🔥 Chaos survived: ${Math.round(chaos)}%</div>` +
+      (justUnlocked ? `<div class="unlocked">🔓 Unlocked: ${LEVELS[nx].name}!</div>` : '');
+    const nextBtn = document.getElementById('nextBtn');
+    if (nx) { nextBtn.classList.remove('hidden'); nextBtn.textContent = `Next: ${LEVELS[nx].name} ▶`; }
+    else nextBtn.classList.add('hidden');
     hud.classList.add('hidden');
     showScreen('win');
   }
   function lose(reason) {
     if (state !== 'playing') return;
     state = 'lose';
+    hideTip();
     Sound.stopMusic(); Sound.play('lose');
     shake = 18;
     document.getElementById('loseSub').textContent = reason;
@@ -297,6 +323,12 @@
     elapsed += dt;
     comboT = Math.max(0, comboT - dt);
     if (comboT === 0) combo = 0;
+
+    // coaching tips (gentle onboarding, mostly on early stages)
+    if (Level.tips && tipIdx < Level.tips.length && elapsed >= Level.tips[tipIdx].at) {
+      showTip(Level.tips[tipIdx].text);
+      tipIdx++;
+    }
 
     // reset working flags; tasks decay progress if untouched
     for (const t of tasks) {
@@ -320,11 +352,12 @@
     });
 
     // Owen menace: leave the kid unattended too long and he makes trouble
-    const owen = players[2];
-    if (owen && active !== 2 && !owen.busyTask && !owen.moving) {
+    const owenIx = players.findIndex(p => p.id === 'owen');
+    const owen = owenIx >= 0 ? players[owenIx] : null;
+    if (Level.menace && owen && active !== owenIx && !owen.busyTask && !owen.moving) {
       owenIdle += dt;
       const already = tasks.some(t => t.def && t.def.type === 'mischief');
-      if (owenIdle > 11 && !already && tasks.filter(t => t.kind === 'nuisance').length < Level.maxNuisances + 1) {
+      if (owenIdle > 13 && !already && tasks.filter(t => t.kind === 'nuisance').length < Level.maxNuisances + 1) {
         const def = OWEN_MISCHIEF[Math.floor(Math.random() * OWEN_MISCHIEF.length)];
         const mt = new Task('nuisance', def, clampX(owen.x), clampY(owen.y - 4));
         tasks.push(mt);
@@ -589,13 +622,44 @@
   }
   function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
+  // coaching tip banner
+  let tipTimer = null;
+  function showTip(text) {
+    const bar = document.getElementById('tipbar');
+    bar.textContent = text;
+    bar.classList.add('show');
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => bar.classList.remove('show'), 5200);
+  }
+  function hideTip() { const b = document.getElementById('tipbar'); b.classList.remove('show'); clearTimeout(tipTimer); }
+
   // ───────────────── overlay control ─────────────────
   function showScreen(name) {
     overlay.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     if (name) document.getElementById('screen-' + name).classList.remove('hidden');
     overlay.style.pointerEvents = name ? 'auto' : 'none';
   }
-  function gotoLevels() { state = 'levels'; hud.classList.add('hidden'); showScreen('levels'); }
+  function buildLevelSelect() {
+    const wrap = document.getElementById('levelcards');
+    const unlocked = getUnlocked();
+    wrap.innerHTML = '';
+    CAMPAIGN.forEach((id, i) => {
+      const L = LEVELS[id];
+      const locked = i >= unlocked;
+      const card = document.createElement('button');
+      card.className = 'levelcard' + (L.theme.sun ? '' : ' night') + (locked ? ' locked' : '');
+      if (!locked) { card.dataset.action = 'level'; card.dataset.level = id; }
+      card.innerHTML = locked
+        ? `<span class="lc-emoji">🔒</span><span class="lc-name">${i + 1}. ${L.name}</span><span class="lc-blurb">Beat the previous stage to unlock.</span>`
+        : `<span class="lc-emoji">${L.icon}</span><span class="lc-name">${i + 1}. ${L.name}</span><span class="lc-blurb">${L.blurb}</span>`;
+      wrap.appendChild(card);
+    });
+  }
+  function gotoLevels() { state = 'levels'; hud.classList.add('hidden'); hideTip(); buildLevelSelect(); showScreen('levels'); }
+  function nextLevelId() {
+    const i = CAMPAIGN.indexOf(currentLevelId);
+    return (i >= 0 && i + 1 < CAMPAIGN.length) ? CAMPAIGN[i + 1] : null;
+  }
   overlay.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
@@ -604,9 +668,10 @@
     if (a === 'levels') gotoLevels();
     else if (a === 'level') startGame(btn.dataset.level);
     else if (a === 'again') startGame(currentLevelId);
+    else if (a === 'next') { const nx = nextLevelId(); if (nx) startGame(nx); else gotoLevels(); }
     else if (a === 'howto') showScreen('howto');
     else if (a === 'back') showScreen('title');
-    else if (a === 'title') { state = 'title'; hud.classList.add('hidden'); showScreen('title'); }
+    else if (a === 'title') { state = 'title'; hud.classList.add('hidden'); hideTip(); showScreen('title'); }
   });
 
   // ───────────────── main loop ─────────────────
@@ -635,7 +700,7 @@
     Input.init(canvas, { onTap, onSwitch: switchTo, onAct: () => {} });
     // title cast
     const cast = document.getElementById('titleCast');
-    Level.chars.forEach(c => {
+    ROSTER.forEach(c => {
       const img = document.createElement('img');
       img.src = `assets/game/${c.id}/idle_0.png`;
       cast.appendChild(img);
